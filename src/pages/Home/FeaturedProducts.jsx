@@ -1,309 +1,291 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Link } from "react-router-dom";
-import { motion, AnimatePresence, useInView } from "framer-motion";
-import { ArrowRight, ShoppingCart, Heart, Star, Sparkles } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { motion, useInView } from "framer-motion";
+import { ArrowRight, MoveLeft, MoveRight, Sparkles } from "lucide-react";
+import gsap from "gsap";
 import { productService } from "../../services/productService";
-import { useCart } from "../../hooks/useCart";
-import { useWishlist } from "../../hooks/useWishlist";
 import { formatCurrency } from "../../utils/formatCurrency";
-import { showToast } from "../../components/Reusable/Toast";
-import { SkeletonGrid } from "../../components/Reusable/Loader";
 
-const TABS = [
-  { id: "all", name: "All", emoji: "✦" },
-  { id: "rings", name: "Rings", emoji: "💍" },
-  { id: "necklaces", name: "Necklaces", emoji: "📿" },
-  { id: "earrings", name: "Earrings", emoji: "✨" },
-  { id: "bracelets", name: "Bracelets", emoji: "⬡" },
-  { id: "chains", name: "Chains", emoji: "⛓" },
-];
 
-/* ── Inline Product Card for this section ── */
-const FeaturedCard = ({ product, variant = "default" }) => {
-  const { addToCart } = useCart();
-  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
-  const isFav = isInWishlist(product.id);
-  const hasDiscount =
-    product.discount_price && product.discount_price < product.price;
 
-  const handleWishlist = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    try {
-      if (isFav) {
-        await removeFromWishlist(product.id);
-        showToast("Removed from wishlist", "info");
-      } else {
-        await addToWishlist(product);
-        showToast("Added to wishlist", "success");
-      }
-    } catch (err) {
-      showToast(err.message || "Error", "error");
-    }
+/* ─────────────────────────────────────────────────────────────────
+   ShowcaseSlider — mirrors the vanilla JS animation exactly:
+     • window wheel listener (gated by hover) — same as original
+     • maxScroll = wrapper.offsetWidth - slider.offsetWidth
+     • LERP + GSAP depth-scale RAF loop
+     • Drag / touch support
+───────────────────────────────────────────────────────────────── */
+const ShowcaseSlider = ({ products }) => {
+  const navigate      = useNavigate();
+  const sliderRef     = useRef(null);   // overflow:hidden container
+  const wrapperRef    = useRef(null);   // position:absolute full-width row
+  const rafRef        = useRef(null);
+  const isHoveredRef  = useRef(false);
+  const stateRef      = useRef({ current: 0, target: 0, maxScroll: 0 });
+  const dragRef       = useRef({ active: false, startX: 0, startTarget: 0 });
+
+  useEffect(() => {
+    const slider  = sliderRef.current;
+    const wrapper = wrapperRef.current;
+    if (!slider || !wrapper || products.length === 0) return;
+
+    // Reset scroll position whenever product list changes
+    stateRef.current.current = 0;
+    stateRef.current.target  = 0;
+    gsap.set(wrapper, { x: 0 });
+
+    // ── maxScroll — matches vanilla: offsetWidth - containerWidth ──
+    const calcMax = () => {
+      stateRef.current.maxScroll = Math.max(
+        0,
+        wrapper.offsetWidth - slider.clientWidth
+      );
+    };
+    // Measure after a paint so max-content width is settled
+    const t1 = setTimeout(calcMax, 50);
+    const t2 = setTimeout(calcMax, 400); // safety re-measure
+
+    window.addEventListener("resize", calcMax);
+
+    // ── Hover gate — only hijack scroll while mouse is inside ──
+    const onEnter = () => { isHoveredRef.current = true; };
+    const onLeave = () => { isHoveredRef.current = false; };
+    slider.addEventListener("mouseenter", onEnter);
+    slider.addEventListener("mouseleave", onLeave);
+
+    // ── Window wheel listener — exactly like vanilla ──
+    const onWheel = (e) => {
+      if (!isHoveredRef.current) return;   // ignore if not hovering
+      const s = stateRef.current;
+      const atStart = s.target <= 0;
+      const atEnd   = s.target >= s.maxScroll;
+      // At the edges, let page scroll naturally
+      if ((atStart && e.deltaY < 0) || (atEnd && e.deltaY > 0)) return;
+      e.preventDefault();
+      s.target += e.deltaY;
+      s.target = Math.max(0, Math.min(s.maxScroll, s.target));
+    };
+    window.addEventListener("wheel", onWheel, { passive: false });
+
+    // ── LERP + depth-scale RAF — exactly like vanilla ──
+    const lerp = (a, b, t) => a + (b - a) * t;
+
+    const update = () => {
+      const s = stateRef.current;
+      s.current = lerp(s.current, s.target, 0.075);
+      gsap.set(wrapper, { x: -s.current });
+
+      wrapper.querySelectorAll(".slide-el").forEach((slide) => {
+        const rect = slide.getBoundingClientRect();
+        const centerPos  = (rect.left + rect.right) / 2;
+        const dist       = centerPos - window.innerWidth / 2;
+        let scale, offsetX;
+        if (dist > 0) {
+          scale   = Math.min(1.75, 1 + dist / window.innerWidth);
+          offsetX = (scale - 1) * 300;
+        } else {
+          scale   = Math.max(0.5, 1 - Math.abs(dist) / window.innerWidth);
+          offsetX = 0;
+        }
+        gsap.set(slide, { scale, x: offsetX });
+      });
+
+      rafRef.current = requestAnimationFrame(update);
+    };
+    rafRef.current = requestAnimationFrame(update);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      window.removeEventListener("resize", calcMax);
+      window.removeEventListener("wheel", onWheel);
+      slider.removeEventListener("mouseenter", onEnter);
+      slider.removeEventListener("mouseleave", onLeave);
+      cancelAnimationFrame(rafRef.current);
+    };
+  }, [products]); // re-run when filtered list changes
+
+  // ── Drag / touch ──
+  const onDragStart = (e) => {
+    const x = e.touches ? e.touches[0].clientX : e.clientX;
+    dragRef.current = { active: true, startX: x, startTarget: stateRef.current.target };
+  };
+  const onDragMove = (e) => {
+    if (!dragRef.current.active) return;
+    const x     = e.touches ? e.touches[0].clientX : e.clientX;
+    const delta = dragRef.current.startX - x;
+    const s     = stateRef.current;
+    s.target    = Math.max(0, Math.min(s.maxScroll, dragRef.current.startTarget + delta * 1.5));
+  };
+  const onDragEnd = () => { dragRef.current.active = false; };
+
+  const nudge = (amount) => {
+    const s  = stateRef.current;
+    s.target = Math.max(0, Math.min(s.maxScroll, s.target + amount));
   };
 
-  const handleCart = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    try {
-      await addToCart(product, 1);
-      showToast("Added to cart", "success");
-    } catch (err) {
-      showToast(err.message || "Error", "error");
-    }
-  };
-
-  if (variant === "hero") {
-    return (
-      <motion.div
-        whileHover={{ scale: 1.01 }}
-        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="relative group overflow-hidden rounded-3xl"
-        style={{ aspectRatio: "3/4" }}
-      >
-        <Link to={`/products/${product.id}`} className="block w-full h-full">
-          {/* Image */}
-          <img
-            src={
-              product.images?.[0] ||
-              "https://images.unsplash.com/photo-1600721391776-b5cd0e0048f9?w=800&auto=format&fit=crop&q=80"
-            }
-            alt={product.name}
-            className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-[1200ms] ease-out"
-          />
-          {/* Gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
-
-          {/* Floating badges */}
-          <div className="absolute top-5 left-5 flex gap-2">
-            {hasDiscount && (
-              <span className="px-3 py-1.5 bg-[#ff2a85] text-white text-[10px] font-black uppercase tracking-widest rounded-full">
-                Sale
-              </span>
-            )}
-            <span className="px-3 py-1.5 bg-white/10 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-widest rounded-full border border-white/20">
-              {product.category}
-            </span>
-          </div>
-
-          {/* Wishlist */}
-          <button
-            onClick={handleWishlist}
-            className="absolute top-5 right-5 p-2.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-[#ff2a85] hover:border-[#ff2a85] transition-all duration-300"
-          >
-            <Heart
-              size={16}
-              fill={isFav ? "#ff2a85" : "none"}
-              className={isFav ? "text-[#ff2a85]" : "text-white"}
-            />
-          </button>
-
-          {/* Bottom info */}
-          <div className="absolute bottom-0 left-0 right-0 p-6 flex flex-col gap-3">
-            <div className="flex items-center gap-1.5">
-              <Star size={12} className="text-amber-400" fill="currentColor" />
-              <span className="text-white text-xs font-bold">
-                {product.rating || "5.0"}
-              </span>
-              <span className="text-white/50 text-[10px]">
-                ({product.review_count || 0})
-              </span>
-            </div>
-            <h3
-              className="text-white text-2xl font-bold leading-tight"
-              style={{ fontFamily: "'TT Drugs', sans-serif" }}
-            >
-              {product.name}
-            </h3>
-            <div className="flex items-center justify-between">
-              <div>
-                {hasDiscount ? (
-                  <>
-                    <span className="text-white/50 text-xs line-through mr-2">
-                      {formatCurrency(product.price)}
-                    </span>
-                    <span className="text-white text-xl font-extrabold">
-                      {formatCurrency(product.discount_price)}
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-white text-xl font-extrabold">
-                    {formatCurrency(product.price)}
-                  </span>
-                )}
-              </div>
-              <button
-                onClick={handleCart}
-                disabled={product.stock === 0}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white text-black text-xs font-extrabold uppercase tracking-wide hover:bg-[#ff2a85] hover:text-white transition-all duration-300 disabled:opacity-50"
-              >
-                <ShoppingCart size={13} />
-                Add
-              </button>
-            </div>
-          </div>
-        </Link>
-      </motion.div>
-    );
-  }
-
-  // Default tall card
-  if (variant === "tall") {
-    return (
-      <motion.div
-        whileHover={{ y: -4 }}
-        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className="relative group overflow-hidden rounded-2xl bg-slate-100 dark:bg-[#0c0c0d] border border-slate-200/50 dark:border-[#1c1c1e]"
-        style={{ aspectRatio: "2/3" }}
-      >
-        <Link to={`/products/${product.id}`} className="block w-full h-full">
-          <img
-            src={
-              product.images?.[0] ||
-              "https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=600&auto=format&fit=crop&q=80"
-            }
-            alt={product.name}
-            className="w-full h-full object-cover transform group-hover:scale-108 transition-transform duration-700 ease-out"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-          {/* Overlay content on hover */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out">
-            <p className="text-[10px] text-[#ff2a85] font-extrabold uppercase tracking-widest mb-1">
-              {product.category}
-            </p>
-            <h3 className="text-white font-bold text-sm leading-tight mb-2">
-              {product.name}
-            </h3>
-            <div className="flex items-center justify-between">
-              <span className="text-white font-extrabold text-base">
-                {formatCurrency(
-                  hasDiscount ? product.discount_price : product.price,
-                )}
-              </span>
-              <button
-                onClick={handleCart}
-                className="p-2 rounded-xl bg-white/20 backdrop-blur-md hover:bg-[#ff2a85] transition-all duration-300"
-              >
-                <ShoppingCart size={14} className="text-white" />
-              </button>
-            </div>
-          </div>
-
-          {hasDiscount && (
-            <span className="absolute top-3 left-3 px-2 py-1 bg-[#ff2a85] text-white text-[9px] font-black uppercase rounded-full tracking-wider">
-              Sale
-            </span>
-          )}
-          <button
-            onClick={handleWishlist}
-            className="absolute top-3 right-3 p-2 rounded-full bg-white/20 backdrop-blur-md hover:bg-[#ff2a85] transition-all duration-300"
-          >
-            <Heart
-              size={12}
-              fill={isFav ? "#ff2a85" : "none"}
-              className={isFav ? "text-[#ff2a85]" : "text-white"}
-            />
-          </button>
-
-          {/* Static label (before hover) */}
-          <div className="absolute bottom-3 left-3 right-3 group-hover:opacity-0 transition-opacity duration-300">
-            <p className="text-[9px] text-white/60 font-bold uppercase tracking-widest">
-              {product.category}
-            </p>
-            <h3 className="text-white font-semibold text-sm leading-tight line-clamp-1">
-              {product.name}
-            </h3>
-          </div>
-        </Link>
-      </motion.div>
-    );
-  }
-
-  // Compact horizontal card
   return (
-    <motion.div
-      whileHover={{ x: 4 }}
-      transition={{ duration: 0.3 }}
-      className="group flex gap-4 p-3.5 rounded-2xl bg-slate-50 dark:bg-[#0c0c0d] border border-slate-200/60 dark:border-[#1c1c1e] hover:border-[#98183f] dark:hover:border-[#ff2a85] transition-all duration-300"
+    <div
+      ref={sliderRef}
+      className="relative w-full h-[600px] overflow-hidden bg-slate-50 dark:bg-slate-950 rounded-3xl flex border border-slate-200 dark:border-white/5 shadow-2xl select-none"
+      style={{ cursor: "grab" }}
+      onMouseDown={onDragStart}
+      onMouseMove={onDragMove}
+      onMouseUp={onDragEnd}
+      onMouseLeave={(e) => { onDragEnd(); }}
+      onTouchStart={onDragStart}
+      onTouchMove={onDragMove}
+      onTouchEnd={onDragEnd}
     >
-      <Link to={`/products/${product.id}`} className="flex gap-4 w-full">
-        <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-slate-100 dark:bg-slate-800">
-          <img
-            src={
-              product.images?.[0] ||
-              "https://images.unsplash.com/photo-1612118899877-5cf9c88b3b30?w=200&auto=format&fit=crop&q=80"
-            }
-            alt={product.name}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-          />
-        </div>
-        <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
-          <p className="text-[9px] text-[#98183f] dark:text-[#ff2a85] font-extrabold uppercase tracking-widest">
-            {product.category}
-          </p>
-          <h4 className="text-slate-900 dark:text-white text-sm font-semibold leading-tight line-clamp-1">
-            {product.name}
-          </h4>
-          <div className="flex items-center justify-between">
-            <span className="text-slate-900 dark:text-white text-sm font-extrabold">
-              {formatCurrency(
-                hasDiscount ? product.discount_price : product.price,
-              )}
-            </span>
-            <button
-              onClick={handleCart}
-              className="p-1.5 rounded-lg bg-[#98183f] dark:bg-[#ff2a85] hover:opacity-80 transition-opacity"
+      {/* ── Rotated sidebar (matches vanilla .sidebar) ── */}
+      <div className="hidden md:block w-[130px] shrink-0 relative border-r border-slate-200 dark:border-white/10 bg-slate-100/50 dark:bg-slate-900 overflow-hidden z-10">
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "600px",
+            height: "130px",
+            transform: "rotate(-90deg) translate(-600px, 0)",
+            transformOrigin: "left top",
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            padding: "1.5em 3em",
+          }}
+        >
+          <div style={{ flex: 2 }}>
+            <p
+              style={{
+                textTransform: "uppercase",
+                fontSize: "3.5rem",
+                lineHeight: "85%",
+                fontWeight: 700,
+                fontFamily: "serif",
+                color: "inherit",
+              }}
+              className="text-slate-900 dark:text-white"
             >
-              <ShoppingCart size={12} className="text-white" />
-            </button>
+              Featured<span className="text-brand">.</span>
+            </p>
+            <p className="text-[9px] text-slate-500 dark:text-slate-400 tracking-wider uppercase font-extrabold mt-2">
+              Curated handpicked essentials
+            </p>
+          </div>
+          <div style={{ flex: 1, display: "flex", gap: "3em", textAlign: "right" }}>
+            <div>
+              <p className="font-mono text-xs text-slate-400">/SOSHKA</p>
+              <p className="text-[9px] uppercase tracking-widest text-slate-500 font-bold mt-0.5">Scroll Experience</p>
+            </div>
           </div>
         </div>
-      </Link>
-    </motion.div>
+      </div>
+
+      {/* ── Slider area — position:relative so wrapper can be absolute ── */}
+      <div className="flex-1 h-full overflow-hidden relative">
+
+        {/* Top label */}
+        <div className="absolute top-6 left-8 z-20 pointer-events-none">
+          <p className="text-[10px] uppercase tracking-[0.25em] text-brand font-extrabold mb-1">Featured Showcase</p>
+          <h3 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white uppercase leading-none">Curated Picks</h3>
+        </div>
+
+        {/* Wrapper — position:absolute, width:max-content (matches vanilla) */}
+        <div
+          ref={wrapperRef}
+          className="absolute top-0 left-0 h-full flex items-center gap-24 px-[250px]"
+          style={{ width: "max-content" }}
+        >
+          {products.map((product) => {
+            const hasDiscount = product.discount_price && product.discount_price < product.price;
+            return (
+              <div
+                key={product.id}
+                className="slide-el w-[240px] h-[330px] shrink-0 rounded-2xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/50 shadow-md relative group hover:shadow-[0_8px_32px_rgba(0,0,0,0.5)] transition-shadow duration-300"
+                style={{ cursor: "pointer" }}
+                onClick={() => navigate(`/products/${product.id}`)}
+              >
+                <img
+                  src={product.images?.[0] || "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80"}
+                  alt={product.name}
+                  loading="lazy"
+                  draggable={false}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 pointer-events-none"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/15 to-transparent flex flex-col justify-end p-5 opacity-90 group-hover:opacity-100 transition-opacity">
+                  <span className="text-[9px] uppercase tracking-wider text-slate-300 font-extrabold mb-1">
+                    {product.category}
+                  </span>
+                  <h4 className="text-base font-extrabold text-white leading-tight truncate pointer-events-none">
+                    {product.name}
+                  </h4>
+                  <div className="flex items-center justify-between mt-2 pt-1 border-t border-white/10">
+                    <span className="text-sm font-black text-slate-200">
+                      {formatCurrency(hasDiscount ? product.discount_price : product.price)}
+                    </span>
+                    <span className="text-[9px] uppercase tracking-wider font-extrabold text-white bg-brand px-2.5 py-1 rounded-full flex items-center gap-1">
+                      Explore <ArrowRight size={10} />
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Arrow controls */}
+        <div className="absolute bottom-6 right-8 flex items-center gap-2 z-20">
+          <button
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={() => nudge(-400)}
+            className="w-10 h-10 rounded-full bg-slate-200 hover:bg-slate-300 dark:bg-white/10 dark:hover:bg-white/20 border border-slate-300 dark:border-white/10 flex items-center justify-center text-slate-700 dark:text-white transition-all hover:scale-105"
+          >
+            <MoveLeft size={16} />
+          </button>
+          <button
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={() => nudge(400)}
+            className="w-10 h-10 rounded-full bg-slate-200 hover:bg-slate-300 dark:bg-white/10 dark:hover:bg-white/20 border border-slate-300 dark:border-white/10 flex items-center justify-center text-slate-700 dark:text-white transition-all hover:scale-105"
+          >
+            <MoveRight size={16} />
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };
 
-/* ── Main Section ── */
+/* ── Skeleton ── */
+const SliderSkeleton = () => (
+  <div className="w-full h-[600px] bg-slate-100 dark:bg-slate-900/60 rounded-3xl border border-slate-200 dark:border-white/5 flex overflow-hidden animate-pulse">
+    <div className="hidden md:block w-[130px] border-r border-slate-200 dark:border-white/5" />
+    <div className="flex-1 flex items-center justify-center gap-24 px-[250px] overflow-hidden">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="w-[240px] h-[330px] shrink-0 rounded-2xl bg-slate-200 dark:bg-slate-800" />
+      ))}
+    </div>
+  </div>
+);
+
+/* ─────────────────────────────────────────────
+   Main featured section
+───────────────────────────────────────────── */
 const FeaturedProducts = () => {
   const [products, setProducts] = useState([]);
-  const [filteredProducts, setFilteredProducts] = useState([]);
-  const [activeTab, setActiveTab] = useState("all");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState(null);
   const sectionRef = useRef(null);
-  const isInView = useInView(sectionRef, { once: true, margin: "-80px" });
+  const isInView   = useInView(sectionRef, { once: true, margin: "-80px" });
 
   useEffect(() => {
-    const fetchFeatured = async () => {
-      try {
-        const data = await productService.getFeaturedProducts(12);
-        setProducts(data);
-        setFilteredProducts(data);
-      } catch (err) {
-        setError(err.message || "Error fetching featured products");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchFeatured();
+    productService.getFeaturedProducts(12)
+      .then((data) => setProducts(data))
+      .catch((err) => setError(err.message || "Error"))
+      .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    if (activeTab === "all") setFilteredProducts(products);
-    else setFilteredProducts(products.filter((p) => p.category === activeTab));
-  }, [activeTab, products]);
-
   if (error)
-    return (
-      <div className="py-12 text-center text-red-500 font-semibold text-sm">
-        {error}
-      </div>
-    );
-
-  const heroProduct = filteredProducts[0];
-  const tallProducts = filteredProducts.slice(1, 4);
-  const compactProducts = filteredProducts.slice(4, 8);
+    return <div className="py-12 text-center text-red-500 font-semibold text-sm">{error}</div>;
 
   return (
     <section
@@ -311,14 +293,14 @@ const FeaturedProducts = () => {
       className="py-20 border-t border-slate-200/40 dark:border-[#1c1c1e] transition-colors duration-300"
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* ── Header ── */}
+
+        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.7 }}
-          className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-12"
+          className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-10"
         >
-          {/* Title */}
           <div>
             <div className="flex items-center gap-2 mb-3">
               <Sparkles size={14} className="text-[#ff2a85]" />
@@ -338,135 +320,25 @@ const FeaturedProducts = () => {
             >
               Products
             </h2>
-            <style>{`.dark { --featured-stroke: #444 } :root { --featured-stroke: #ccc }`}</style>
           </div>
-
-          {/* View all link */}
           <Link
             to="/products"
             className="group flex items-center gap-2 text-sm font-bold text-slate-600 dark:text-slate-400 hover:text-[#98183f] dark:hover:text-[#ff2a85] transition-colors"
           >
             View All
-            <ArrowRight
-              size={16}
-              className="group-hover:translate-x-1 transition-transform"
-            />
+            <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
           </Link>
         </motion.div>
 
-        {/* ── Filter Pills ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6, delay: 0.15 }}
-          className="flex flex-wrap gap-2.5 mb-12"
-        >
-          {TABS.map((tab) => {
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`relative px-5 py-2.5 rounded-full text-xs font-extrabold uppercase tracking-widest transition-all duration-300 ${
-                  isActive
-                    ? "text-white bg-[#98183f] dark:bg-[#ff2a85] shadow-lg shadow-[#98183f]/20 dark:shadow-[#ff2a85]/20"
-                    : "text-slate-500 dark:text-slate-500 bg-slate-100 dark:bg-[#0c0c0d] border border-slate-200 dark:border-[#1c1c1e] hover:border-[#98183f] dark:hover:border-[#ff2a85] hover:text-[#98183f] dark:hover:text-[#ff2a85]"
-                }`}
-              >
-                <span className="mr-1.5">{tab.emoji}</span>
-                {tab.name}
-              </button>
-            );
-          })}
-        </motion.div>
-
-        {/* ── Grid Layout ── */}
+        {/* Slider */}
         {loading ? (
-          <SkeletonGrid count={8} />
+          <SliderSkeleton />
         ) : products.length === 0 ? (
           <div className="text-center py-12 text-slate-500 dark:text-slate-400">
             No featured products available.
           </div>
         ) : (
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -16 }}
-              transition={{ duration: 0.4 }}
-              className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5"
-            >
-              {/* Hero Product — large left */}
-              {heroProduct && (
-                <motion.div
-                  className="lg:col-span-4"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.6, delay: 0.1 }}
-                >
-                  <FeaturedCard product={heroProduct} variant="hero" />
-                </motion.div>
-              )}
-
-              {/* Middle: 3 tall cards */}
-              <div className="lg:col-span-5 grid grid-cols-3 gap-4 lg:gap-5">
-                {tallProducts.map((product, i) => (
-                  <motion.div
-                    key={product.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.1 + i * 0.07 }}
-                  >
-                    <FeaturedCard product={product} variant="tall" />
-                  </motion.div>
-                ))}
-              </div>
-
-              {/* Right: compact list */}
-              <div className="lg:col-span-3 flex flex-col gap-3 justify-between">
-                {/* Label */}
-                <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-600 mb-1">
-                  Quick Picks
-                </p>
-                {compactProducts.map((product, i) => (
-                  <motion.div
-                    key={product.id}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.4, delay: 0.2 + i * 0.06 }}
-                  >
-                    <FeaturedCard product={product} variant="compact" />
-                  </motion.div>
-                ))}
-
-                {/* CTA Banner */}
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.5 }}
-                  className="mt-auto rounded-2xl overflow-hidden relative"
-                  style={{ minHeight: "90px" }}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-br from-[#98183f] to-[#6b1030] dark:from-[#ff2a85] dark:to-[#c41f66]" />
-                  <div className="relative p-4 flex flex-col gap-2">
-                    <p className="text-white/80 text-[10px] font-bold uppercase tracking-widest">
-                      Explore More
-                    </p>
-                    <p className="text-white text-sm font-bold leading-tight">
-                      Discover the full collection
-                    </p>
-                    <Link
-                      to="/products"
-                      className="self-start flex items-center gap-1.5 mt-1 px-3 py-1.5 rounded-xl bg-white text-[#98183f] dark:text-[#c41f66] text-[10px] font-extrabold uppercase tracking-wider hover:bg-black hover:text-white transition-all duration-300"
-                    >
-                      Shop All <ArrowRight size={10} />
-                    </Link>
-                  </div>
-                </motion.div>
-              </div>
-            </motion.div>
-          </AnimatePresence>
+          <ShowcaseSlider products={products} />
         )}
       </div>
     </section>

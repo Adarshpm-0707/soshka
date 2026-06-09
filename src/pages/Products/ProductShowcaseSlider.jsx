@@ -187,11 +187,9 @@ const ProductShowcaseSlider = () => {
         >
           <div className="flex-grow">
             <p className="text-[3.5rem] font-bold text-slate-900 dark:text-white uppercase tracking-tighter leading-none" style={{ fontFamily: 'serif' }}>
-              neuro<span className="text-brand">.</span>
+              Featured Showcase<span className="text-brand">.</span>
             </p>
-            <p className="text-[9px] text-slate-500 dark:text-slate-400 leading-tight tracking-wider uppercase font-extrabold mt-1">
-              Lab crafted synthetic leather
-            </p>
+        
           </div>
           <div className="flex shrink-0 items-center gap-8 text-right pr-6">
             <div>
