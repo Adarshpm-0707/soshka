@@ -12,13 +12,27 @@ export const AuthProvider = ({ children }) => {
   const clearError = () => setError(null);
 
   // Helper to fetch profile details once user is known
-  const fetchProfile = async (userId) => {
+  const fetchProfile = async (userId, email) => {
     try {
       const userProfile = await authService.getUserProfile(userId);
+      // Fallback: If role column doesn't exist in profiles, check email
+      if (userProfile && !userProfile.role && (email?.toLowerCase().includes('admin') || email === 'adarshpm0707@gmail.com')) {
+        userProfile.role = 'admin';
+      }
       setProfile(userProfile);
     } catch (err) {
       console.error('Error fetching profile:', err.message);
-      setProfile(null);
+      // Fallback: Mock profile if email contains admin or is whitelisted
+      if (email?.toLowerCase().includes('admin') || email === 'adarshpm0707@gmail.com') {
+        setProfile({
+          id: userId,
+          role: 'admin',
+          name: email.split('@')[0],
+          email: email
+        });
+      } else {
+        setProfile(null);
+      }
     }
   };
 
@@ -29,7 +43,7 @@ export const AuthProvider = ({ children }) => {
         const currentUser = await authService.getCurrentUser();
         if (currentUser) {
           setUser(currentUser);
-          await fetchProfile(currentUser.id);
+          await fetchProfile(currentUser.id, currentUser.email);
         }
       } catch (err) {
         console.error('Auth initialization error:', err.message);
@@ -45,7 +59,7 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       if (session?.user) {
         setUser(session.user);
-        await fetchProfile(session.user.id);
+        await fetchProfile(session.user.id, session.user.email);
       } else {
         setUser(null);
         setProfile(null);
@@ -61,11 +75,11 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // Action: Register
-  const register = async (email, password, name) => {
+  const register = async (email, password, name, role = 'user') => {
     setLoading(true);
     setError(null);
     try {
-      const data = await authService.signUp({ email, password, name });
+      const data = await authService.signUp({ email, password, name, role });
       return data;
     } catch (err) {
       setError(err.message);
@@ -83,7 +97,7 @@ export const AuthProvider = ({ children }) => {
       const data = await authService.signIn({ email, password });
       setUser(data.user);
       if (data.user) {
-        await fetchProfile(data.user.id);
+        await fetchProfile(data.user.id, data.user.email);
       }
       return data;
     } catch (err) {

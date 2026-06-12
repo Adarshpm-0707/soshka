@@ -14,7 +14,12 @@ const CartItem = ({ item }) => {
 
   if (!product) return null;
 
-  const unitPrice = product.discount_price || product.price;
+  const originalPrice = product.original_price ?? product.price;
+  const offerPrice = product.offer_price;
+  const offer = product.offers || product.offer;
+  const isOfferActive = !!(offerPrice && offer && offer.is_active);
+
+  const unitPrice = isOfferActive ? offerPrice : originalPrice;
   const itemTotal = unitPrice * item.quantity;
 
   const handleRemove = async () => {
@@ -51,7 +56,7 @@ const CartItem = ({ item }) => {
       <div className="flex items-center space-x-4 min-w-0">
         <Link to={`/products/${product.id}`} className="shrink-0">
           <img
-            src={product.images?.[0] || 'https://images.unsplash.com/photo-1612118899877-5cf9c88b3b30?w=200&auto=format&fit=crop&q=60'}
+            src={product.images?.[0] || ''}
             alt={product.name}
             className="h-16 w-16 rounded-xl object-cover border border-slate-200 dark:border-[#1c1c1e] hover:opacity-90 transition"
           />
@@ -102,9 +107,9 @@ const CartItem = ({ item }) => {
           <span className="text-sm font-extrabold text-slate-900 dark:text-white block">
             {formatCurrency(itemTotal)}
           </span>
-          {product.discount_price && (
+          {isOfferActive && (
             <span className="text-[10px] text-slate-400 line-through">
-              {formatCurrency(product.price * item.quantity)}
+              {formatCurrency(originalPrice * item.quantity)}
             </span>
           )}
         </div>

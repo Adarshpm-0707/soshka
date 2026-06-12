@@ -5,13 +5,14 @@ export const authService = {
    * Register a new user with email and password.
    * Profiles table is automatically updated via database trigger.
    */
-  async signUp({ email, password, name }) {
+  async signUp({ email, password, name, role = 'user' }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
-          name: name
+          name: name,
+          role: role
         }
       }
     });

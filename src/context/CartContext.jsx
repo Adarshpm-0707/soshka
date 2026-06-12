@@ -240,8 +240,14 @@ export const CartProvider = ({ children }) => {
   const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
 
   const cartTotal = cartItems.reduce((total, item) => {
-    const price = item.product?.discount_price || item.product?.price || 0;
-    return total + price * item.quantity;
+    const product = item.product;
+    if (!product) return total;
+    const originalPrice = product.original_price ?? product.price ?? 0;
+    const offerPrice = product.offer_price;
+    const offer = product.offers || product.offer;
+    const isOfferActive = !!(offerPrice && offer && offer.is_active);
+    const unitPrice = isOfferActive ? offerPrice : originalPrice;
+    return total + unitPrice * item.quantity;
   }, 0);
 
   const value = {

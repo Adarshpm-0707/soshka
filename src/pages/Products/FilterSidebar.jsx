@@ -1,8 +1,26 @@
-import React from 'react';
-import { CATEGORIES } from '../../utils/constants';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../../lib/supabaseClient';
 import { Star, RotateCcw } from 'lucide-react';
 
 const FilterSidebar = ({ filters, onFilterChange, onReset }) => {
+  const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('categories')
+          .select('*')
+          .order('name', { ascending: true });
+        if (error) throw error;
+        setCategories(data || []);
+      } catch (err) {
+        console.error('Error fetching categories for filter:', err);
+      }
+    };
+    fetchCategories();
+  }, []);
+
   const handleCategorySelect = (categoryId) => {
     onFilterChange({ category: categoryId });
   };
@@ -66,12 +84,12 @@ const FilterSidebar = ({ filters, onFilterChange, onReset }) => {
           >
             All Categories
           </button>
-          {CATEGORIES.map((cat) => (
+          {categories.map((cat) => (
             <button
               key={cat.id}
-              onClick={() => handleCategorySelect(cat.id)}
+              onClick={() => handleCategorySelect(cat.name)}
               className={`text-left text-sm px-3 py-1.5 rounded-lg transition font-semibold ${
-                filters.category === cat.id
+                filters.category === cat.name
                   ? 'bg-primary-50 dark:bg-primary-950/20 text-primary-600 dark:text-primary-400 font-bold'
                   : 'text-slate-600 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800'
               }`}

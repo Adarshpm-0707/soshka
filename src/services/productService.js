@@ -1,98 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 
-const MOCK_PRODUCTS = [
-  {
-    id: 'prod-1',
-    name: 'Solitaire Diamond Ring',
-    category: 'rings',
-    price: 75000,
-    discount_price: 68000,
-    rating: 4.9,
-    review_count: 34,
-    stock: 12,
-    images: ['https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&q=80'],
-    description: 'Classic 18k white gold solitaire engagement ring with a round brilliant cut lab-grown diamond. Timeless luxury and exceptional fire.',
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 'prod-2',
-    name: 'Emerald Halo Pendant',
-    category: 'necklaces',
-    price: 42000,
-    discount_price: null,
-    rating: 4.8,
-    review_count: 21,
-    stock: 5,
-    images: ['https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600&q=80'],
-    description: 'Premium 14k yellow gold pendant featuring a deep green emerald surrounded by a halo of micro-paved diamonds. Elegant design for special occasions.',
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 'prod-3',
-    name: 'Infinity Gold Bracelet',
-    category: 'bracelets',
-    price: 28000,
-    discount_price: null,
-    rating: 4.7,
-    review_count: 15,
-    stock: 8,
-    images: ['https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=600&q=80'],
-    description: 'Crafted in 18k solid rose gold, this delicate bracelet features an infinity link embellished with shimmering round cut diamonds.',
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 'prod-4',
-    name: 'Hanging Pearl Earrings',
-    category: 'earrings',
-    price: 18500,
-    discount_price: 16200,
-    rating: 4.6,
-    review_count: 19,
-    stock: 15,
-    images: ['https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=600&q=80'],
-    description: 'Lustrous white South Sea pearls suspended from delicate 18k gold hoops set with brilliant pavé diamonds. Refined and sophisticated.',
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 'prod-5',
-    name: 'Classic Cuban Link Chain',
-    category: 'chains',
-    price: 15000,
-    discount_price: 12500,
-    rating: 4.8,
-    review_count: 42,
-    stock: 20,
-    images: ['https://images.unsplash.com/photo-1599643477877-530eb83abc8e?w=600&q=80'],
-    description: 'Heavyweight 22k gold plated solid silver Cuban link chain. Features a high-polish finish and custom secure clasp mechanism.',
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 'prod-6',
-    name: 'Ruby Halo Studs',
-    category: 'earrings',
-    price: 35000,
-    discount_price: null,
-    rating: 4.7,
-    review_count: 10,
-    stock: 6,
-    images: ['https://images.unsplash.com/photo-1635767798638-3e25273a8236?w=600&q=80'],
-    description: 'Stunning crimson ruby stud earrings set in 14k white gold. Surrounded by a radiant halo of brilliant diamonds.',
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 'prod-7',
-    name: 'Sapphire Drop Necklace',
-    category: 'necklaces',
-    price: 52000,
-    discount_price: 48000,
-    rating: 4.9,
-    review_count: 28,
-    stock: 4,
-    images: ['https://images.unsplash.com/photo-1602751584552-8ba73aad10e1?w=600&q=80'],
-    description: 'Elegant 18k white gold drop necklace featuring a pear-shaped royal blue sapphire suspended from a diamond bail.',
-    created_at: new Date().toISOString()
-  }
-];
+const MOCK_PRODUCTS = [];
 
 const queryCache = {
   data: {},
@@ -124,7 +32,7 @@ export const productService = {
     if (cached) return cached;
 
     try {
-      let query = supabase.from('products').select('*');
+      let query = supabase.from('products').select('*, offers(*)');
 
       if (category && category !== 'all') {
         query = query.eq('category', category);
@@ -216,7 +124,7 @@ export const productService = {
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('*')
+        .select('*, offers(*)')
         .eq('id', id)
         .single();
       if (error) throw error;
@@ -244,7 +152,7 @@ export const productService = {
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('*')
+        .select('*, offers(*)')
         .eq('slug', slug)
         .single();
       if (error) throw error;
@@ -272,7 +180,7 @@ export const productService = {
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('*')
+        .select('*, offers(*)')
         .order('rating', { ascending: false })
         .limit(limit);
       if (error) throw error;
@@ -297,7 +205,7 @@ export const productService = {
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('*')
+        .select('*, offers(*)')
         .eq('category', category)
         .neq('id', currentProductId)
         .limit(limit);
@@ -312,5 +220,31 @@ export const productService = {
       setCachedData(cacheKey, fallback);
       return fallback;
     }
+  },
+
+  /**
+   * Fetch product along with its active offer (joining products + offers where offer is active).
+   */
+  async fetchProductWithOffer(slug) {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*, offers!inner(*)')
+      .eq('slug', slug)
+      .eq('offers.is_active', true)
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Fetch active offers for promotional banners.
+   */
+  async fetchActiveOffers() {
+    const { data, error } = await supabase
+      .from('offers')
+      .select('*')
+      .eq('is_active', true);
+    if (error) throw error;
+    return data;
   }
 };

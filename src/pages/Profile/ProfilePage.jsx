@@ -114,11 +114,17 @@ const ProfilePage = () => {
               </div>
             ) : (
               <>
-                <img
-                  src={profile?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
-                  alt="Profile Avatar"
-                  className="h-28 w-28 rounded-full object-cover border-2 border-primary-500 dark:border-primary-600 shadow-sm group-hover:brightness-75 transition"
-                />
+                {profile?.avatar_url ? (
+                  <img
+                    src={profile.avatar_url}
+                    alt="Profile Avatar"
+                    className="h-28 w-28 rounded-full object-cover border-2 border-primary-500 dark:border-primary-600 shadow-sm group-hover:brightness-75 transition"
+                  />
+                ) : (
+                  <div className="h-28 w-28 rounded-full border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 group-hover:bg-slate-200 dark:group-hover:bg-slate-750 transition text-2xl font-bold uppercase">
+                    {(profile.name || 'U').charAt(0)}
+                  </div>
+                )}
                 <label
                   htmlFor="avatar-file"
                   className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition rounded-full bg-black/40 text-white cursor-pointer"

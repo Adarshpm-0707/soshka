@@ -111,7 +111,7 @@ const OrderDetail = () => {
                 <div key={idx} className="flex items-center justify-between py-4.5 gap-4">
                   <div className="flex items-center space-x-3.5">
                     <img
-                      src={item.image || 'https://via.placeholder.com/150'}
+                      src={item.image || ''}
                       alt={item.name}
                       className="h-12 w-12 rounded-xl object-cover border border-slate-200 dark:border-slate-800"
                     />

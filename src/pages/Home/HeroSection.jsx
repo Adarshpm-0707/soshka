@@ -234,7 +234,7 @@ const HeroSection = () => {
 
         {/* Parallax backgrounds and WebGL canvas overlay */}
         <div className="hero__row">
-          <img className="hero__bg" src="./img/hero-bg.webp" alt="Ironhill Background" />
+          <img className="hero__bg" src="/img/hero.PNG" alt="Hero Background" />
           <canvas ref={canvasRef} className="hero-canvas"></canvas>
         </div>
       </section>

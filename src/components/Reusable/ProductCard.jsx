@@ -40,7 +40,10 @@ const ProductCard = ({ product }) => {
     }
   };
 
-  const hasDiscount = product.discount_price && product.discount_price < product.price;
+  const originalPrice = product.original_price ?? product.price;
+  const offerPrice = product.offer_price;
+  const offer = product.offers || product.offer;
+  const isOfferActive = !!(offerPrice && offer && offer.is_active);
 
   return (
     <motion.div
@@ -55,10 +58,7 @@ const ProductCard = ({ product }) => {
         style={{ paddingBottom: '100%' /* 1:1 aspect ratio */ }}
       >
         <img
-          src={
-            product.images?.[0] ||
-            'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=500&auto=format&fit=crop&q=60'
-          }
+          src={product.images?.[0] || ''}
           alt={product.name}
           loading="lazy"
           className="absolute inset-0 w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out"
@@ -78,9 +78,9 @@ const ProductCard = ({ product }) => {
         </button>
 
         {/* Sale badge */}
-        {hasDiscount && (
-          <span className="absolute top-3 left-3 px-2.5 py-1 bg-[#98183f] dark:bg-[#ff2a85] text-white text-[9px] font-extrabold rounded-lg uppercase tracking-wider shadow-sm">
-            Sale
+        {isOfferActive && (
+          <span className="absolute top-3 left-3 px-2.5 py-1 bg-[#98183f] dark:bg-[#ff2a85] text-white text-[9px] font-extrabold rounded-lg uppercase tracking-wider shadow-sm max-w-[80%] truncate" title={offer.message}>
+            {offer.message}
           </span>
         )}
       </Link>
@@ -103,7 +103,7 @@ const ProductCard = ({ product }) => {
         {/* Rating */}
         <div className="flex items-center gap-1 mt-0.5">
           <Star size={11} className="text-amber-400 shrink-0" fill="currentColor" />
-          <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+          <span className="text-xs font-bold text-slate-700 dark:text-slate-350">
             {product.rating || '0.0'}
           </span>
           <span className="text-[10px] text-slate-400 dark:text-slate-500">
@@ -116,18 +116,18 @@ const ProductCard = ({ product }) => {
 
           {/* Price block */}
           <div className="flex flex-col min-w-0">
-            {hasDiscount ? (
+            {isOfferActive ? (
               <>
                 <span className="text-[10px] text-slate-400 line-through leading-none mb-0.5">
-                  {formatCurrency(product.price)}
+                  {formatCurrency(originalPrice)}
                 </span>
-                <span className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-tight truncate">
-                  {formatCurrency(product.discount_price)}
+                <span className="text-sm sm:text-base font-extrabold text-[#98183f] dark:text-[#ff2a85] leading-tight truncate">
+                  {formatCurrency(offerPrice)}
                 </span>
               </>
             ) : (
               <span className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-tight truncate">
-                {formatCurrency(product.price)}
+                {formatCurrency(originalPrice)}
               </span>
             )}
           </div>

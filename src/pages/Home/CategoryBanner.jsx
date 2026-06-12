@@ -1,47 +1,56 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { CATEGORIES } from '../../utils/constants';
+import { supabase } from '../../lib/supabaseClient';
 import SectionTitle from '../../components/Reusable/SectionTitle';
 
 gsap.registerPlugin(ScrollTrigger);
 
-const CATEGORY_IMAGES = {
-  rings: [
-    'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=500&auto=format&fit=crop&q=60',
-    'https://images.unsplash.com/photo-1603561591411-07134e71a2a9?w=500&auto=format&fit=crop&q=60',
-    'https://images.unsplash.com/photo-1543294001-f7cbfe92237e?w=500&auto=format&fit=crop&q=60',
-    'https://images.unsplash.com/photo-1589674781759-c21c37956a44?w=500&auto=format&fit=crop&q=60',
-  ],
-  necklaces: [
-    'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=500&auto=format&fit=crop&q=60',
-    'https://images.unsplash.com/photo-1602751584552-8ba73aad10e1?w=500&auto=format&fit=crop&q=60',
-    'https://images.unsplash.com/photo-1617038260897-41a1f14a8ca0?w=500&auto=format&fit=crop&q=60',
-    'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=500&auto=format&fit=crop&q=60',
-  ],
-  earrings: [
-    'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=500&auto=format&fit=crop&q=60',
-    'https://images.unsplash.com/photo-1635767798638-3e25273a8236?w=500&auto=format&fit=crop&q=60',
-    'https://images.unsplash.com/photo-1601121141461-9d6647bca1ed?w=500&auto=format&fit=crop&q=60',
-    'https://images.unsplash.com/photo-1629224316810-9d8805b95e76?w=500&auto=format&fit=crop&q=60',
-  ],
-  bracelets: [
-    'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=500&auto=format&fit=crop&q=60',
-    'https://images.unsplash.com/photo-1573408301185-9146fe634ad0?w=500&auto=format&fit=crop&q=60',
-    'https://images.unsplash.com/photo-1602752275313-477eaabc497c?w=500&auto=format&fit=crop&q=60',
-    'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=500&auto=format&fit=crop&q=60',
-  ],
-  chains: [
-    'https://images.unsplash.com/photo-1599643477877-530eb83abc8e?w=500&auto=format&fit=crop&q=60',
-    'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=500&auto=format&fit=crop&q=60',
-    'https://images.unsplash.com/photo-1602751584552-8ba73aad10e1?w=500&auto=format&fit=crop&q=60',
-    'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=500&auto=format&fit=crop&q=60',
-  ],
-};
-
 const CategoryBanner = () => {
   const containerRef = useRef(null);
+  const [categories, setCategories] = useState([]);
+  const [categoryImagesMap, setCategoryImagesMap] = useState({});
+
+  useEffect(() => {
+    const fetchCategoriesAndImages = async () => {
+      try {
+        const { data: catData, error: catError } = await supabase
+          .from('categories')
+          .select('*')
+          .order('name', { ascending: true });
+        if (catError) throw catError;
+
+        const { data: prodData, error: prodError } = await supabase
+          .from('products')
+          .select('category, category_id, images');
+        if (prodError) throw prodError;
+
+        const imgMap = {};
+        if (prodData) {
+          prodData.forEach(p => {
+            const key = p.category_id || p.category;
+            if (key && p.images && p.images.length > 0) {
+              if (!imgMap[key]) {
+                imgMap[key] = [];
+              }
+              p.images.forEach(img => {
+                if (img && img.trim()) {
+                  imgMap[key].push(img);
+                }
+              });
+            }
+          });
+        }
+
+        setCategoryImagesMap(imgMap);
+        setCategories(catData || []);
+      } catch (err) {
+        console.error('Error fetching categories for banner:', err);
+      }
+    };
+    fetchCategoriesAndImages();
+  }, []);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -111,7 +120,7 @@ const CategoryBanner = () => {
         tween.kill();
       });
     };
-  }, []);
+  }, [categories, categoryImagesMap]);
 
   return (
     <section ref={containerRef} className="py-20 bg-slate-50 dark:bg-slate-950 border-y border-slate-200/40 dark:border-slate-900 transition-colors duration-300 overflow-hidden">
@@ -125,8 +134,15 @@ const CategoryBanner = () => {
 
       {/* Marquees Container */}
       <div className="marquees-section flex flex-col gap-4">
-        {CATEGORIES.map((cat, index) => {
-          const catImages = CATEGORY_IMAGES[cat.id] || [];
+        {categories.map((cat, index) => {
+          const list = categoryImagesMap[cat.id] || categoryImagesMap[cat.name] || [];
+          if (list.length === 0) return null; // Hide category if there are no admin-added images
+
+          const catImages = [];
+          while (catImages.length < 4) {
+            catImages.push(...list);
+          }
+          const finalImages = catImages.slice(0, 4);
           
           return (
             <div 
@@ -138,12 +154,12 @@ const CategoryBanner = () => {
               <div className="category-marquee flex gap-6 items-center">
                 {/* Item 1: Image */}
                 <div className="category-marquee-item w-72 sm:w-80 lg:w-96 h-full flex-shrink-0">
-                  <img src={catImages[0] || cat.image} alt={cat.name} loading="lazy" />
+                  <img src={finalImages[0]} alt={cat.name} loading="lazy" />
                 </div>
                 
                 {/* Item 2: Text Title (Double-width column) */}
                 <div className="category-marquee-item with-text w-96 sm:w-[28rem] lg:w-[32rem] h-full flex-shrink-0">
-                  <Link to={`/products?category=${cat.id}`} className="block">
+                  <Link to={`/products?category=${cat.name}`} className="block">
                     <h1 className="item-title select-none">
                       {cat.name.split('').map((char, charIdx) => (
                         <span key={charIdx} className="category-char inline-block" style={{ fontWeight: 100 }}>
@@ -156,17 +172,17 @@ const CategoryBanner = () => {
                 
                 {/* Item 3: Image */}
                 <div className="category-marquee-item w-72 sm:w-80 lg:w-96 h-full flex-shrink-0">
-                  <img src={catImages[1] || cat.image} alt={cat.name} loading="lazy" />
+                  <img src={finalImages[1]} alt={cat.name} loading="lazy" />
                 </div>
                 
                 {/* Item 4: Image */}
                 <div className="category-marquee-item w-72 sm:w-80 lg:w-96 h-full flex-shrink-0">
-                  <img src={catImages[2] || cat.image} alt={cat.name} loading="lazy" />
+                  <img src={finalImages[2]} alt={cat.name} loading="lazy" />
                 </div>
                 
                 {/* Item 5: Image */}
                 <div className="category-marquee-item w-72 sm:w-80 lg:w-96 h-full flex-shrink-0">
-                  <img src={catImages[3] || cat.image} alt={cat.name} loading="lazy" />
+                  <img src={finalImages[3]} alt={cat.name} loading="lazy" />
                 </div>
               </div>
             </div>

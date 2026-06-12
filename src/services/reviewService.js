@@ -58,6 +58,39 @@ export const reviewService = {
   },
 
   /**
+   * Delete a review and recalculate average rating & review count for the product.
+   */
+  async deleteReview(reviewId, productId) {
+    const { error: deleteError } = await supabase
+      .from('reviews')
+      .delete()
+      .eq('id', reviewId);
+
+    if (deleteError) throw deleteError;
+
+    // Fetch all remaining reviews for this product to recalculate
+    const { data: allReviews, error: fetchError } = await supabase
+      .from('reviews')
+      .select('rating')
+      .eq('product_id', productId);
+
+    if (!fetchError) {
+      const reviewCount = allReviews ? allReviews.length : 0;
+      const averageRating = reviewCount > 0 
+        ? parseFloat((allReviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount).toFixed(1))
+        : 0;
+
+      await supabase
+        .from('products')
+        .update({
+          rating: averageRating,
+          review_count: reviewCount
+        })
+        .eq('id', productId);
+    }
+  },
+
+  /**
    * Submit a contact request form.
    */
   async submitContactRequest({ name, email, message }) {

@@ -224,7 +224,7 @@ const ProductShowcaseSlider = () => {
               >
                 {/* Background Image */}
                 <img 
-                  src={product.images?.[0] || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80'} 
+                  src={product.images?.[0] || ''} 
                   alt={product.name} 
                   loading="lazy"
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 pointer-events-none"

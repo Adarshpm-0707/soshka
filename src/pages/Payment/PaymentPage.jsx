@@ -106,7 +106,7 @@ const PaymentPage = () => {
         currency: 'INR',
         name: 'Soshka Store',
         description: 'Payment for order checkouts',
-        image: 'https://images.unsplash.com/photo-1472851294608-062f824d29cc?w=100&auto=format&fit=crop&q=80',
+        image: '',
         handler: async function (response) {
           setLoading(true);
           await handleOrderCreation(response.razorpay_payment_id);

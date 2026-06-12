@@ -148,11 +148,17 @@ const Navbar = () => {
                   onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
                   className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-white/10 transition-all duration-200 group"
                 >
-                  <img
-                    src={profile?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
-                    alt={profile?.name || 'User'}
-                    className="h-7 w-7 rounded-full object-cover ring-2 ring-white/30 group-hover:ring-white transition-all duration-200"
-                  />
+                  {profile?.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      alt={profile?.name || 'User'}
+                      className="h-7 w-7 rounded-full object-cover ring-2 ring-white/30 group-hover:ring-white transition-all duration-200"
+                    />
+                  ) : (
+                    <div className="h-7 w-7 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold text-white ring-2 ring-white/30 group-hover:ring-white transition-all duration-200 uppercase">
+                      {(profile?.name || 'U').charAt(0)}
+                    </div>
+                  )}
                   <span className="hidden sm:block text-xs font-semibold text-rose-100 group-hover:text-white transition-colors max-w-[80px] truncate">
                     {profile?.name?.split(' ')[0] || 'Account'}
                   </span>
@@ -324,11 +330,17 @@ const Navbar = () => {
               {user ? (
                 <div className="rounded-xl bg-[#121214] p-3.5 border border-white/5">
                   <div className="flex items-center gap-3 mb-3">
-                    <img
-                      src={profile?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
-                      alt={profile?.name || 'User'}
-                      className="h-10 w-10 rounded-full object-cover ring-2 ring-white/20"
-                    />
+                    {profile?.avatar_url ? (
+                      <img
+                        src={profile.avatar_url}
+                        alt={profile?.name || 'User'}
+                        className="h-10 w-10 rounded-full object-cover ring-2 ring-white/20"
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold text-white ring-2 ring-white/20 uppercase">
+                        {(profile?.name || 'U').charAt(0)}
+                      </div>
+                    )}
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-bold text-white truncate">{profile?.name || 'User'}</p>
                       <p className="text-[11px] text-rose-200/50 truncate">{user?.email}</p>

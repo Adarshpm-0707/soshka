@@ -78,7 +78,7 @@ const WishlistPage = () => {
                 {/* Image */}
                 <div className="aspect-square bg-slate-100 dark:bg-slate-850 overflow-hidden relative">
                   <img
-                    src={product.images?.[0] || 'https://via.placeholder.com/150'}
+                    src={product.images?.[0] || ''}
                     alt={product.name}
                     className="object-cover w-full h-full transform group-hover:scale-103 transition duration-500"
                   />

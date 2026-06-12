@@ -4,6 +4,18 @@ import ScrollToTop from '../components/Reusable/ScrollToTop';
 import MainLayout from '../layouts/MainLayout';
 import AdminLayout from '../layouts/AdminLayout';
 import ProtectedRoute from './ProtectedRoute';
+import AdminProtectedRoute from './AdminProtectedRoute';
+
+// Import Admin pages
+import AdminLoginPage from '../pages/Admin/AdminLoginPage';
+import AdminSignupPage from '../pages/Admin/AdminSignupPage';
+import AdminDashboard from '../pages/Admin/AdminDashboard';
+import AdminProductsPage from '../pages/Admin/AdminProductsPage';
+import AdminAddProductPage from '../pages/Admin/AdminAddProductPage';
+import AdminEditProductPage from '../pages/Admin/AdminEditProductPage';
+import AdminCategoriesPage from '../pages/Admin/AdminCategoriesPage';
+import AdminOffersPage from '../pages/Admin/AdminOffersPage';
+import AdminOrdersPage from '../pages/Admin/AdminOrdersPage';
 
 // Lazy load or import pages directly
 import HomePage from '../pages/Home/HomePage';
@@ -12,7 +24,6 @@ import ProductDetailPage from '../pages/ProductDetails/ProductDetailPage';
 import CartPage from '../pages/Cart/CartPage';
 import CheckoutPage from '../pages/Checkout/CheckoutPage';
 import PaymentPage from '../pages/Payment/PaymentPage';
-import PaymentStatus from '../pages/Payment/PaymentStatus';
 import OrdersPage from '../pages/Orders/OrdersPage';
 import OrderDetail from '../pages/Orders/OrderDetail';
 import WishlistPage from '../pages/Wishlist/WishlistPage';
@@ -89,16 +100,27 @@ const AppRoutes = () => {
         />
       </Route>
 
+      {/* Admin login & signup (outside layout/protection) */}
+      <Route path="/admin/login" element={<AdminLoginPage />} />
+      <Route path="/admin/signup" element={<AdminSignupPage />} />
+
       {/* Admin Routes inside AdminLayout */}
       <Route 
         path="/admin" 
         element={
-          <ProtectedRoute>
+          <AdminProtectedRoute>
             <AdminLayout />
-          </ProtectedRoute>
+          </AdminProtectedRoute>
         }
       >
-        <Route index element={<div className="p-6 text-xl">Admin Dashboard (Incoming Feature)</div>} />
+        <Route index element={<AdminDashboard />} />
+        <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="products" element={<AdminProductsPage />} />
+        <Route path="products/new" element={<AdminAddProductPage />} />
+        <Route path="products/:id" element={<AdminEditProductPage />} />
+        <Route path="categories" element={<AdminCategoriesPage />} />
+        <Route path="offers" element={<AdminOffersPage />} />
+        <Route path="orders" element={<AdminOrdersPage />} />
       </Route>
       
       {/* 404 Route */}

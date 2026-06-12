@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { reviewService } from '../../services/reviewService';
-import { Star, ShieldAlert, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Star, ShieldAlert, ArrowLeft, ArrowRight, Trash2 } from 'lucide-react';
 import { showToast } from '../../components/Reusable/Toast';
 import Input from '../../components/Reusable/Input';
 import Button from '../../components/Reusable/Button';
 
 const ReviewSection = ({ productId, onReviewSubmitted }) => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   // Pagination states
   const [page, setPage] = useState(1);
@@ -19,9 +20,30 @@ const ReviewSection = ({ productId, onReviewSubmitted }) => {
 
   // New review form states
   const [rating, setRating] = useState(5);
+  const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+
+  const handleDelete = async (reviewId) => {
+    if (window.confirm("Are you sure you want to delete this review?")) {
+      setDeletingId(reviewId);
+      try {
+        await reviewService.deleteReview(reviewId, productId);
+        showToast('Review deleted successfully!', 'info');
+        // Refresh reviews list
+        await fetchReviews();
+        // Notify parent to refetch product rating & count
+        if (onReviewSubmitted) {
+          onReviewSubmitted();
+        }
+      } catch (err) {
+        showToast(err.message || 'Failed to delete review.', 'error');
+      } finally {
+        setDeletingId(null);
+      }
+    }
+  };
 
   const fetchReviews = useCallback(async () => {
     setLoading(true);
@@ -105,21 +127,28 @@ const ReviewSection = ({ productId, onReviewSubmitted }) => {
                 <span className="text-xs font-semibold uppercase tracking-wider text-slate-450 dark:text-slate-400 block">
                   Rating
                 </span>
-                <div className="flex space-x-1.5">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setRating(star)}
-                      className="text-amber-400 transition transform active:scale-110"
-                    >
-                      <Star
-                        size={22}
-                        fill={star <= rating ? 'currentColor' : 'none'}
-                        className={star <= rating ? 'text-amber-400' : 'text-slate-350 dark:text-slate-600'}
-                      />
-                    </button>
-                  ))}
+                <div 
+                  className="flex space-x-1.5"
+                  onMouseLeave={() => setHoverRating(0)}
+                >
+                  {[1, 2, 3, 4, 5].map((star) => {
+                    const isFilled = star <= (hoverRating !== 0 ? hoverRating : rating);
+                    return (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setRating(star)}
+                        onMouseEnter={() => setHoverRating(star)}
+                        className="text-amber-400 transition transform active:scale-110"
+                      >
+                        <Star
+                          size={22}
+                          fill={isFilled ? 'currentColor' : 'none'}
+                          className={isFilled ? 'text-amber-400' : 'text-slate-350 dark:text-slate-650'}
+                        />
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -177,46 +206,71 @@ const ReviewSection = ({ productId, onReviewSubmitted }) => {
             <>
               {/* Reviews Items */}
               <div className="space-y-4">
-                {reviews.map((rev) => (
-                  <div
-                    key={rev.id}
-                    className="p-5 bg-white dark:bg-slate-850 rounded-2xl border border-slate-150 dark:border-slate-800 shadow-sm space-y-3"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <img
-                          src={rev.profile?.avatar_url || 'https://via.placeholder.com/150'}
-                          alt={rev.profile?.name}
-                          className="h-9 w-9 rounded-full object-cover border border-slate-200 dark:border-slate-850"
-                        />
-                        <div>
-                          <p className="text-sm font-bold text-slate-800 dark:text-white">
-                            {rev.profile?.name || 'Anonymous'}
-                          </p>
-                          <p className="text-[10px] text-slate-400 font-semibold">
-                            {new Date(rev.created_at).toLocaleDateString()}
-                          </p>
+                {reviews.map((rev) => {
+                  const isOwner = user && user.id === rev.user_id;
+                  const isAdmin = profile?.role === 'admin' || user?.email?.includes('admin');
+                  const canDelete = isOwner || isAdmin;
+
+                  return (
+                    <div
+                      key={rev.id}
+                      className="p-5 bg-white dark:bg-slate-850 rounded-2xl border border-slate-150 dark:border-slate-800 shadow-sm space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          {rev.profile?.avatar_url ? (
+                            <img
+                              src={rev.profile.avatar_url}
+                              alt={rev.profile?.name}
+                              className="h-9 w-9 rounded-full object-cover border border-slate-200 dark:border-slate-850"
+                            />
+                          ) : (
+                            <div className="h-9 w-9 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-500 dark:text-slate-350 border border-slate-250 dark:border-slate-800 uppercase">
+                              {(rev.profile?.name || 'A').charAt(0)}
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-sm font-bold text-slate-800 dark:text-white">
+                              {rev.profile?.name || 'Anonymous'}
+                            </p>
+                            <p className="text-[10px] text-slate-400 font-semibold">
+                              {new Date(rev.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Stars & Delete Button */}
+                        <div className="flex items-center space-x-2.5">
+                          <div className="flex text-amber-400">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <Star
+                                key={i}
+                                size={12}
+                                fill={i < rev.rating ? 'currentColor' : 'none'}
+                                className={i < rev.rating ? 'text-amber-400' : 'text-slate-200 dark:text-slate-700'}
+                              />
+                            ))}
+                          </div>
+
+                          {canDelete && (
+                            <button
+                              onClick={() => handleDelete(rev.id)}
+                              disabled={deletingId === rev.id}
+                              className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition disabled:opacity-50"
+                              title="Delete Review"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
                         </div>
                       </div>
 
-                      {/* Stars */}
-                      <div className="flex text-amber-400">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <Star
-                            key={i}
-                            size={12}
-                            fill={i < rev.rating ? 'currentColor' : 'none'}
-                            className={i < rev.rating ? 'text-amber-400' : 'text-slate-200 dark:text-slate-700'}
-                          />
-                        ))}
-                      </div>
+                      <p className="text-sm font-medium text-slate-600 dark:text-slate-300 pl-1">
+                        {rev.comment}
+                      </p>
                     </div>
-
-                    <p className="text-sm font-medium text-slate-600 dark:text-slate-300 pl-1">
-                      {rev.comment}
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Pagination controls */}
