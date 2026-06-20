@@ -13,6 +13,7 @@ const RegisterPage = () => {
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   
@@ -25,8 +26,15 @@ const RegisterPage = () => {
     setErrors({});
     setGeneralError('');
 
+    // Admin separation check
+    if (email.toLowerCase().includes('admin') || email.toLowerCase() === 'adarshpm0707@gmail.com') {
+      setGeneralError("Emails containing 'admin' or system operators are reserved for administrative accounts. Please sign up using a customer email address.");
+      showToast('Registration Denied', 'error');
+      return;
+    }
+
     // Validation
-    const validation = validateRegisterForm({ name, email, password, confirmPassword });
+    const validation = validateRegisterForm({ name, email, phone, password, confirmPassword });
     if (!validation.isValid) {
       setErrors(validation.errors);
       return;
@@ -34,7 +42,7 @@ const RegisterPage = () => {
 
     setLoading(true);
     try {
-      await register(email, password, name);
+      await register(email, password, name, 'user', phone);
       showToast('Registration successful! Please check your email.', 'success');
       navigate('/login');
     } catch (err) {
@@ -87,6 +95,18 @@ const RegisterPage = () => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             error={errors.email}
+            required
+            disabled={loading}
+          />
+
+          <Input
+            label="Phone Number (10 digits)"
+            id="phone"
+            type="tel"
+            placeholder="9876543210"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            error={errors.phone}
             required
             disabled={loading}
           />

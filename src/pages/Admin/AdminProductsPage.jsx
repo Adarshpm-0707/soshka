@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { Plus, Trash2, Edit, Search, AlertTriangle, Loader2 } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { showToast } from '../../components/Reusable/Toast';
+import { adminLogService } from '../../services/adminLogService';
 
 const AdminProductsPage = () => {
   const [products, setProducts] = useState([]);
@@ -41,6 +42,10 @@ const AdminProductsPage = () => {
         .delete()
         .eq('id', id);
       if (error) throw error;
+      
+      // Log deletion in admin_logs
+      await adminLogService.logAction('deleted_product', 'products', id, { id });
+
       showToast('Product deleted successfully', 'success');
       setDeleteId(null);
       await fetchProducts();

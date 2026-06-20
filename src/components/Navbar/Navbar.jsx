@@ -7,7 +7,7 @@ import NavLinks from './NavLinks';
 import CartIcon from './CartIcon';
 
 const Navbar = () => {
-  const { user, profile, logout } = useAuth();
+  const { user, profile, logout, isAdmin, isSuperAdmin } = useAuth();
   const { wishlistItems } = useWishlist();
   const navigate = useNavigate();
 
@@ -72,7 +72,6 @@ const Navbar = () => {
   };
 
   const wishlistCount = wishlistItems.length;
-  const isAdmin = user?.email?.includes('admin');
 
   return (
     <>
@@ -190,7 +189,16 @@ const Navbar = () => {
                   </div>
 
                   <div className="py-1.5">
-                    {isAdmin && (
+                    {isSuperAdmin ? (
+                      <Link
+                        to="/superadmin"
+                        onClick={() => setProfileDropdownOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-xs font-semibold text-rose-100 hover:text-white hover:bg-white/10 transition-all duration-150"
+                      >
+                        <LayoutDashboard size={14} />
+                        Super Admin Panel
+                      </Link>
+                    ) : isAdmin ? (
                       <Link
                         to="/admin"
                         onClick={() => setProfileDropdownOpen(false)}
@@ -199,7 +207,7 @@ const Navbar = () => {
                         <LayoutDashboard size={14} />
                         Admin Panel
                       </Link>
-                    )}
+                    ) : null}
                     <Link
                       to="/profile"
                       onClick={() => setProfileDropdownOpen(false)}
@@ -348,7 +356,16 @@ const Navbar = () => {
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 mb-3">
-                    {isAdmin && (
+                    {isSuperAdmin ? (
+                      <Link
+                        to="/superadmin"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-white/5 text-xs font-bold text-rose-100 hover:text-white transition-all duration-150 text-center"
+                      >
+                        <LayoutDashboard size={13} />
+                        Super Admin
+                      </Link>
+                    ) : isAdmin ? (
                       <Link
                         to="/admin"
                         onClick={() => setMobileMenuOpen(false)}
@@ -357,7 +374,7 @@ const Navbar = () => {
                         <LayoutDashboard size={13} />
                         Admin Panel
                       </Link>
-                    )}
+                    ) : null}
                     <Link
                       to="/profile"
                       onClick={() => setMobileMenuOpen(false)}

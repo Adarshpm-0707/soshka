@@ -5,19 +5,35 @@ export const authService = {
    * Register a new user with email and password.
    * Profiles table is automatically updated via database trigger.
    */
-  async signUp({ email, password, name, role = 'user' }) {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          name: name,
-          role: role
-        }
-      }
+  async signUp({ email, password, name, phone = '', role = 'user' }) {
+    const { data, error } = await supabase.rpc('register_user_directly', {
+      p_email: email,
+      p_password: password,
+      p_name: name,
+      p_role: role,
+      p_phone: phone
     });
+
     if (error) throw error;
-    return data;
+
+    if (data && data.success === false) {
+      throw new Error(data.message || 'Registration failed.');
+    }
+
+    // Mock successful signup response object structure matching Supabase Auth schema
+    return {
+      user: {
+        id: data.user_id,
+        email: email,
+        email_confirmed_at: new Date().toISOString(),
+        user_metadata: {
+          name: name,
+          role: role,
+          phone: phone
+        }
+      },
+      session: null
+    };
   },
 
   /**

@@ -31,7 +31,7 @@ export function validateZipCode(zip) {
 /**
  * Validates register forms.
  */
-export function validateRegisterForm({ name, email, password, confirmPassword }) {
+export function validateRegisterForm({ name, email, phone, password, confirmPassword }) {
   const errors = {};
 
   if (!name || name.trim().length < 2) {
@@ -40,6 +40,10 @@ export function validateRegisterForm({ name, email, password, confirmPassword })
 
   if (!email || !validateEmail(email)) {
     errors.email = 'Please provide a valid email address.';
+  }
+
+  if (!phone || !validatePhone(phone)) {
+    errors.phone = 'Please provide a valid 10-digit mobile number.';
   }
 
   if (!password || password.length < 6) {

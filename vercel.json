@@ -6,13 +6,13 @@
     "env": {
       "VITE_SUPABASE_URL": "https://bmbegjxfkpyenndfbcdj.supabase.co",
       "VITE_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_fNj9Or2qOPMIfOtWKETgTg__5YiqUJb",
-      "VITE_RAZORPAY_KEY_ID": "rzp_test_your_razorpay_key_id"
+      "VITE_RAZORPAY_KEY_ID": "rzp_test_T3myXSZtyLZmik"
     }
   },
   "env": {
     "VITE_SUPABASE_URL": "https://bmbegjxfkpyenndfbcdj.supabase.co",
     "VITE_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_fNj9Or2qOPMIfOtWKETgTg__5YiqUJb",
-    "VITE_RAZORPAY_KEY_ID": "rzp_test_your_razorpay_key_id"
+    "VITE_RAZORPAY_KEY_ID": "rzp_test_T3myXSZtyLZmik"
   },
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }

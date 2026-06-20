@@ -5,6 +5,7 @@ import { ArrowLeft, Upload, Trash2, Loader2, Sparkles } from 'lucide-react';
 import Input from '../../components/Reusable/Input';
 import Button from '../../components/Reusable/Button';
 import { showToast } from '../../components/Reusable/Toast';
+import { adminLogService } from '../../services/adminLogService';
 
 const AdminAddProductPage = () => {
   const navigate = useNavigate();
@@ -107,7 +108,7 @@ const AdminAddProductPage = () => {
         .replace(/(^-|-$)+/g, '');
 
       // Insert product
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('products')
         .insert({
           name,
@@ -121,9 +122,15 @@ const AdminAddProductPage = () => {
           stock: Number(stock),
           offer_id: offerId || null,
           images, // exactly 3 slots
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+
+      if (data) {
+        await adminLogService.logAction('created_product', 'products', data.id, { name });
+      }
 
       showToast('Product added successfully!', 'success');
       navigate('/admin/products');

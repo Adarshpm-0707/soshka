@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { Search, Loader2, Package, Calendar, User, CreditCard, ChevronRight, X, AlertCircle } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { showToast } from '../../components/Reusable/Toast';
+import { adminLogService } from '../../services/adminLogService';
 
 const AdminOrdersPage = () => {
   const [orders, setOrders] = useState([]);
@@ -44,6 +45,10 @@ const AdminOrdersPage = () => {
         .eq('id', orderId);
       
       if (error) throw error;
+
+      // Log the action in admin_logs
+      await adminLogService.logAction('updated_order_status', 'orders', orderId, { status: newStatus });
+
       showToast(`Order status updated to ${newStatus}`, 'success');
       
       // Update selected order modal detail state inline
@@ -141,6 +146,7 @@ const AdminOrdersPage = () => {
                 <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 text-[10px] uppercase tracking-wider font-extrabold text-slate-400">
                   <th className="py-4 px-6">Order ID</th>
                   <th className="py-4 px-6">Customer Email</th>
+                  <th className="py-4 px-6">Products</th>
                   <th className="py-4 px-6">Date</th>
                   <th className="py-4 px-6">Grand Total</th>
                   <th className="py-4 px-6">Status</th>
@@ -160,6 +166,19 @@ const AdminOrdersPage = () => {
                     <td className="py-4 px-6">
                       <span className="text-slate-800 dark:text-slate-100 font-bold block">{order.profile?.name || 'Anonymous'}</span>
                       <span className="text-[10px] text-slate-450 block font-normal">{order.profile?.email || 'N/A'}</span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="space-y-1 max-w-[200px]">
+                        {(order.items || []).map((item, idx) => (
+                          <div key={idx} className="text-xs truncate" title={`${item.name} x ${item.quantity}`}>
+                            <span className="font-bold text-slate-700 dark:text-slate-200">{item.name}</span>
+                            <span className="text-slate-450 text-[10px] ml-1">x{item.quantity}</span>
+                          </div>
+                        ))}
+                        {(!order.items || order.items.length === 0) && (
+                          <span className="text-xs text-slate-400">No items</span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-4 px-6">
                       <span className="text-xs text-slate-500 font-bold">
@@ -235,11 +254,11 @@ const AdminOrdersPage = () => {
                   <span className="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider flex items-center">
                     📍 Shipping Location
                   </span>
-                  <div className="text-xs font-semibold text-slate-500 leading-relaxed">
+                  <div className="text-xs font-semibold text-slate-505 leading-relaxed">
                     <p>{selectedOrder.shipping_address?.name}</p>
-                    <p>{selectedOrder.shipping_address?.line1}</p>
+                    <p>{selectedOrder.shipping_address?.addressLine || selectedOrder.shipping_address?.line1}</p>
                     {selectedOrder.shipping_address?.line2 && <p>{selectedOrder.shipping_address?.line2}</p>}
-                    <p>{selectedOrder.shipping_address?.city}, {selectedOrder.shipping_address?.state} - {selectedOrder.shipping_address?.postal_code}</p>
+                    <p>{selectedOrder.shipping_address?.city}, {selectedOrder.shipping_address?.state} - {selectedOrder.shipping_address?.postalCode || selectedOrder.shipping_address?.postal_code}</p>
                     <p>Contact: {selectedOrder.shipping_address?.phone}</p>
                   </div>
                 </div>

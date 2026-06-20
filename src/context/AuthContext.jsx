@@ -75,11 +75,11 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // Action: Register
-  const register = async (email, password, name, role = 'user') => {
+  const register = async (email, password, name, role = 'user', phone = '') => {
     setLoading(true);
     setError(null);
     try {
-      const data = await authService.signUp({ email, password, name, role });
+      const data = await authService.signUp({ email, password, name, phone, role });
       return data;
     } catch (err) {
       setError(err.message);
@@ -172,6 +172,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const isSuperAdmin = profile?.role === 'superadmin';
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'superadmin' || user?.email === 'adarshpm0707@gmail.com';
+
   const value = {
     user,
     profile,
@@ -183,7 +186,9 @@ export const AuthProvider = ({ children }) => {
     loginWithGoogle,
     updateProfile,
     uploadAvatar,
-    clearError
+    clearError,
+    isAdmin,
+    isSuperAdmin
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

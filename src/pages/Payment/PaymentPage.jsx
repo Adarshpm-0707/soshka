@@ -100,16 +100,66 @@ const PaymentPage = () => {
     try {
       const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_mockKey';
 
+      // 1. Create order on the backend
+      const amountPaise = Math.round(grandTotal * 100);
+      const receiptId = `receipt_${user?.id?.slice(0, 8) || 'user'}_${Date.now()}`;
+      
+      const createOrderRes = await fetch('/api/create-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: amountPaise,
+          currency: 'INR',
+          receipt: receiptId,
+        }),
+      });
+
+      if (!createOrderRes.ok) {
+        const errorData = await createOrderRes.json();
+        throw new Error(errorData.error || 'Failed to initialize payment order on server.');
+      }
+
+      const { order_id } = await createOrderRes.json();
+
+      // 2. Configure checkout options
       const options = {
         key: razorpayKey,
-        amount: Math.round(grandTotal * 100), // in Paisa
+        amount: amountPaise,
         currency: 'INR',
         name: 'Soshka Store',
         description: 'Payment for order checkouts',
         image: '',
+        order_id: order_id,
         handler: async function (response) {
           setLoading(true);
-          await handleOrderCreation(response.razorpay_payment_id);
+          try {
+            // 3. Verify signature on the backend
+            const verifyRes = await fetch('/api/verify-payment', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                order_id: response.razorpay_order_id,
+                payment_id: response.razorpay_payment_id,
+                signature: response.razorpay_signature,
+              }),
+            });
+
+            if (!verifyRes.ok) {
+              const verifyError = await verifyRes.json();
+              throw new Error(verifyError.error || 'Payment signature verification failed.');
+            }
+
+            // 4. Record order details in database
+            await handleOrderCreation(response.razorpay_payment_id);
+          } catch (err) {
+            setLoading(false);
+            console.error('Payment verification error:', err);
+            showToast(err.message || 'Payment verification failed.', 'error');
+          }
         },
         prefill: {
           name: shippingAddress.name,
@@ -128,10 +178,19 @@ const PaymentPage = () => {
       };
 
       const rzp = new window.Razorpay(options);
+
+      // Listen for payment failure events
+      rzp.on('payment.failed', function (response) {
+        console.error('Payment failed details:', response.error);
+        showToast(response.error.description || 'Payment process failed.', 'error');
+        setLoading(false);
+      });
+
       rzp.open();
     } catch (err) {
       setLoading(false);
-      showToast('Error opening Razorpay payment window.', 'error');
+      console.error('Razorpay payment setup error:', err);
+      showToast(err.message || 'Error opening Razorpay payment window.', 'error');
     }
   };
 

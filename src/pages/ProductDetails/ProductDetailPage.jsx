@@ -202,7 +202,11 @@ const ProductDetailPage = () => {
                   ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400'
                   : 'bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400'
               }`}>
-                {product.stock > 0 ? `In Stock (${product.stock} left)` : 'Out of Stock'}
+                {product.stock > 0
+                  ? product.stock < 5
+                    ? `In Stock (${product.stock} left)`
+                    : 'In Stock'
+                  : 'Out of Stock'}
               </span>
             </div>
           </div>

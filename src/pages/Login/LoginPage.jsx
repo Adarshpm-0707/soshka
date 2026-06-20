@@ -6,9 +6,10 @@ import { validateEmail } from '../../utils/validations';
 import Input from '../../components/Reusable/Input';
 import Button from '../../components/Reusable/Button';
 import { showToast } from '../../components/Reusable/Toast';
+import { supabase } from '../../lib/supabaseClient';
 
 const LoginPage = () => {
-  const { login } = useAuth();
+  const { login, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -36,7 +37,27 @@ const LoginPage = () => {
 
     setLoading(true);
     try {
-      await login(email, password);
+      const data = await login(email, password);
+      if (data?.user) {
+        let userRole = 'user';
+        try {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', data.user.id)
+            .single();
+          userRole = profileData?.role || 'user';
+        } catch (err) {
+          userRole = 'user';
+        }
+
+        if (userRole === 'admin' || userRole === 'superadmin') {
+          await logout();
+          setError('Access Denied: Please use the admin login portal to access your account.');
+          showToast('Access Denied', 'error');
+          return;
+        }
+      }
       showToast('Successfully logged in!', 'success');
       navigate(from, { replace: true });
     } catch (err) {

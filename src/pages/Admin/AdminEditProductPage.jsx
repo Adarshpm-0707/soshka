@@ -5,6 +5,7 @@ import { ArrowLeft, Upload, Trash2, Loader2 } from 'lucide-react';
 import Input from '../../components/Reusable/Input';
 import Button from '../../components/Reusable/Button';
 import { showToast } from '../../components/Reusable/Toast';
+import { adminLogService } from '../../services/adminLogService';
 
 const AdminEditProductPage = () => {
   const { id } = useParams();
@@ -158,6 +159,9 @@ const AdminEditProductPage = () => {
         .eq('id', id);
 
       if (error) throw error;
+
+      // Log update in admin_logs
+      await adminLogService.logAction('updated_product', 'products', id, { name });
 
       showToast('Product updated successfully!', 'success');
       navigate('/admin/products');
