@@ -76,6 +76,31 @@ const PaymentPage = () => {
         paymentId
       });
 
+      // Dispatch order details and request courier pickup from Shiprocket
+      try {
+        console.log('Dispatching order to Shiprocket...');
+        const shiprocketRes = await fetch('/api/shiprocket-pickup', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            order: newOrder,
+            email: user?.email
+          })
+        });
+
+        if (!shiprocketRes.ok) {
+          const errData = await shiprocketRes.json();
+          console.warn('Shiprocket integration returned an error:', errData.error);
+        } else {
+          const shipData = await shiprocketRes.json();
+          console.log('Shiprocket order pushed & pickup scheduled successfully:', shipData);
+        }
+      } catch (shipErr) {
+        console.error('Failed to dispatch order to Shiprocket:', shipErr);
+      }
+
       // Clear DB/Local Cart
       await clearCart();
       

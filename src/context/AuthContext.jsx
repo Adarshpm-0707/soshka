@@ -138,6 +138,20 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Action: Login with Apple
+  const loginWithApple = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await authService.signInWithApple();
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Action: Update Profile Details
   const updateProfile = async (updates) => {
     if (!user) throw new Error('No authenticated user');
@@ -184,6 +198,7 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     loginWithGoogle,
+    loginWithApple,
     updateProfile,
     uploadAvatar,
     clearError,

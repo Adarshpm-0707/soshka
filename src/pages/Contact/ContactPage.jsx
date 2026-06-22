@@ -30,12 +30,39 @@ const ContactPage = () => {
 
     setLoading(true);
     try {
+      // 1. Save to Supabase Database
       await reviewService.submitContactRequest({
         name: name.trim(),
         email: email.trim(),
         message: message.trim()
       });
-      showToast('Message sent successfully!', 'success');
+
+      // 2. Dispatch email notification via Vercel serverless function
+      try {
+        const response = await fetch('/api/contact', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            name: name.trim(),
+            email: email.trim(),
+            message: message.trim()
+          })
+        });
+
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.error || 'SMTP failed');
+        }
+
+        showToast('Message sent successfully!', 'success');
+      } catch (emailErr) {
+        console.warn('Email dispatch failed:', emailErr.message);
+        // Toast info since db save succeeded, but email failed
+        showToast('Message saved, but email notification failed to deliver.', 'info');
+      }
+
       setName('');
       setEmail('');
       setMessage('');
@@ -48,9 +75,25 @@ const ContactPage = () => {
   };
 
   const contactDetails = [
-    { title: 'Email Us', desc: 'support@soshkastore.com', info: 'Reply within 24 hours', icon: <Mail className="text-primary-600 dark:text-primary-450 h-5 w-5" /> },
-    { title: 'Call Us', desc: '+91 98765 43210', info: 'Mon - Sat: 9 AM - 6 PM', icon: <Phone className="text-primary-600 dark:text-primary-450 h-5 w-5" /> },
-    { title: 'Visit Us', desc: 'Soshka HQ, Indiranagar', info: 'Bengaluru, Karnataka, India', icon: <MapPin className="text-primary-600 dark:text-primary-450 h-5 w-5" /> }
+    { 
+      title: 'Email Us', 
+      desc: 'soshka.in@gmail.com',  
+      icon: <Mail className="text-primary-600 dark:text-primary-450 h-5 w-5" />,
+      link: 'mailto:soshka.in@gmail.com'
+    },
+    { 
+      title: 'Call Us', 
+      desc: '+91 98465 45949',  
+      icon: <Phone className="text-primary-600 dark:text-primary-450 h-5 w-5" />,
+      link: 'tel:+919846545949'
+    },
+    { 
+      title: 'Visit Us', 
+      desc: 'Aleef Global', 
+      info: 'kannur , kerala , India', 
+      icon: <MapPin className="text-primary-600 dark:text-primary-450 h-5 w-5" />,
+      link: 'https://www.google.com/maps?q=11°52\'44.9"N+75°22\'33.4"E'
+    }
   ];
 
   return (
@@ -67,21 +110,33 @@ const ContactPage = () => {
         
         {/* Left column: Contact info cards */}
         <div className="lg:col-span-1 space-y-4">
-          {contactDetails.map((detail) => (
-            <div
-              key={detail.title}
-              className="flex items-start space-x-4 p-5 bg-white dark:bg-slate-850 rounded-2xl border border-slate-205 dark:border-slate-800 shadow-sm"
-            >
-              <div className="p-3 bg-primary-50/20 dark:bg-primary-950/20 rounded-xl">
-                {detail.icon}
-              </div>
-              <div className="space-y-1">
-                <h4 className="text-sm font-bold text-slate-850 dark:text-white uppercase tracking-wide font-sans">{detail.title}</h4>
-                <p className="text-sm font-extrabold text-slate-900 dark:text-slate-100">{detail.desc}</p>
-                <p className="text-xs text-slate-400 font-semibold">{detail.info}</p>
-              </div>
-            </div>
-          ))}
+          {contactDetails.map((detail) => {
+            const CardWrapper = detail.link ? 'a' : 'div';
+            const extraProps = detail.link 
+              ? { href: detail.link, target: '_blank', rel: 'noopener noreferrer' } 
+              : {};
+            
+            return (
+              <CardWrapper
+                key={detail.title}
+                {...extraProps}
+                className={`flex items-start space-x-4 p-5 bg-white dark:bg-slate-850 rounded-2xl border border-slate-205 dark:border-slate-800 shadow-sm ${
+                  detail.link 
+                    ? 'cursor-pointer hover:border-primary-500/40 dark:hover:border-primary-500/40 hover:shadow-md transition-all duration-300 block' 
+                    : ''
+                }`}
+              >
+                <div className="p-3 bg-primary-50/20 dark:bg-primary-950/20 rounded-xl">
+                  {detail.icon}
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-sm font-bold text-slate-850 dark:text-white uppercase tracking-wide font-sans">{detail.title}</h4>
+                  <p className="text-sm font-extrabold text-slate-900 dark:text-slate-100">{detail.desc}</p>
+                  {detail.info && <p className="text-xs text-slate-400 font-semibold">{detail.info}</p>}
+                </div>
+              </CardWrapper>
+            );
+          })}
         </div>
 
         {/* Right column: Form submits */}
@@ -103,7 +158,7 @@ const ContactPage = () => {
               <Input
                 label="Full Name"
                 id="name"
-                placeholder="John Doe"
+                placeholder="Full Name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 error={errors.name}
@@ -115,7 +170,7 @@ const ContactPage = () => {
                 label="Email Address"
                 id="email"
                 type="email"
-                placeholder="john@example.com"
+                placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 error={errors.email}

@@ -89,6 +89,20 @@ export const authService = {
   },
 
   /**
+   * Sign in using Apple OAuth.
+   */
+  async signInWithApple() {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'apple',
+      options: {
+        redirectTo: window.location.origin
+      }
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  /**
    * Fetch a user profile from the profiles table.
    */
   async getUserProfile(userId) {

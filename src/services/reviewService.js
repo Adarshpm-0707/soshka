@@ -94,13 +94,11 @@ export const reviewService = {
    * Submit a contact request form.
    */
   async submitContactRequest({ name, email, message }) {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('contact_requests')
-      .insert({ name, email, message })
-      .select()
-      .single();
+      .insert({ name, email, message });
 
     if (error) throw error;
-    return data;
+    return { name, email, message };
   }
 };
