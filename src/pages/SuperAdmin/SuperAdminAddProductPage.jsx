@@ -21,6 +21,7 @@ const SuperAdminAddProductPage = () => {
   const [originalPrice, setOriginalPrice] = useState('');
   const [offerPrice, setOfferPrice] = useState('');
   const [stock, setStock] = useState('');
+  const [cost, setCost] = useState('');
   const [offerId, setOfferId] = useState('');
 
   // Exactly 3 image slots
@@ -119,6 +120,7 @@ const SuperAdminAddProductPage = () => {
           original_price: Number(originalPrice),
           offer_price: offerPrice ? Number(offerPrice) : null,
           stock: Number(stock),
+          cost: cost ? Number(cost) : 0,
           offer_id: offerId || null,
           images, // exactly 3 slots
         })
@@ -289,6 +291,23 @@ const SuperAdminAddProductPage = () => {
                     </option>
                   ))}
                 </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label htmlFor="cost" className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+                  Product Cost *
+                </label>
+                <input
+                  id="cost"
+                  type="number"
+                  placeholder="e.g. 5000"
+                  value={cost}
+                  onChange={(e) => setCost(e.target.value)}
+                  required
+                  disabled={loading}
+                  className="w-full bg-slate-950 border border-[#26262a] focus:border-[#ff2a85] text-white rounded-xl px-4 py-3 text-sm outline-none transition-colors placeholder:text-slate-655"
+                />
               </div>
             </div>
           </div>

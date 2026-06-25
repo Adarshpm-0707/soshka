@@ -17,6 +17,7 @@ const FooterLinks = () => {
       title: 'Company',
       links: [
         { label: 'About Us', path: '/about' },
+        { label: 'Reviews', path: '/reviews' },
         { label: 'Contact Us', path: '/contact' },
         { label: 'Store Locator', path: '/about' },
         { label: 'Careers', path: '/about' },

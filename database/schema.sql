@@ -29,6 +29,7 @@ create table public.products (
     images text[] not null default '{}'::text[],
     rating numeric default 0 check (rating >= 0 and rating <= 5),
     review_count integer default 0 check (review_count >= 0),
+    cost numeric default 0 check (cost >= 0),
     created_at timestamp with time zone default timezone('utc'::text, now())
 );
 

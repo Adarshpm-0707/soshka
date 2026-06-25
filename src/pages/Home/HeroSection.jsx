@@ -1,10 +1,4 @@
 import React, { useEffect, useRef } from 'react';
-import * as THREE from 'three';
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import Lenis from 'lenis';
-
-gsap.registerPlugin(ScrollTrigger);
 
 const vertexShader = `
   varying vec2 vUv;
@@ -93,133 +87,146 @@ const HeroSection = () => {
     
     if (!hero || !canvas) return;
 
-    // 1. Initialize Lenis Smooth Scroll
-    const lenis = new Lenis({
-      duration: 1.2,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      orientation: 'vertical',
-      gestureOrientation: 'vertical',
-      smoothWheel: true,
-      wheelMultiplier: 1,
-      smoothTouch: false,
-      touchMultiplier: 2,
-      infinite: false,
-    });
+    let active = true;
+    let cleanupFn = null;
 
-    let rafId;
-    function raf(time) {
-      lenis.raf(time);
-      ScrollTrigger.update();
-      rafId = requestAnimationFrame(raf);
-    }
-    rafId = requestAnimationFrame(raf);
+    // Dynamically load heavy visual libraries to keep initial bundle light
+    Promise.all([
+      import('three'),
+      import('gsap'),
+      import('gsap/ScrollTrigger'),
+      import('lenis')
+    ])
+      .then(([THREE, { default: gsap }, { ScrollTrigger }, { default: Lenis }]) => {
+        if (!active) return;
 
-    // 2. Initialize Three.js Scene
-    const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-    const renderer = new THREE.WebGLRenderer({
-      canvas,
-      alpha: true,
-      antialias: false,
-    });
+        gsap.registerPlugin(ScrollTrigger);
 
-    // Detect initial theme and set background color accordingly
-    let isDark = document.documentElement.classList.contains('dark');
-    const initialColor = isDark ? '#000000' : '#ffffff';
-    const rgb = hexToRgb(initialColor);
-    const geometry = new THREE.PlaneGeometry(2, 2);
-    
-    const material = new THREE.ShaderMaterial({
-      vertexShader,
-      fragmentShader,
-      uniforms: {
-        uProgress: { value: 0 },
-        uResolution: {
-          value: new THREE.Vector2(hero.offsetWidth || window.innerWidth, hero.offsetHeight || window.innerHeight),
-        },
-        uColor: { value: new THREE.Vector3(rgb.r, rgb.g, rgb.b) },
-        uSpread: { value: CONFIG.spread },
-      },
-      transparent: true,
-    });
-
-    // Observe theme toggles and transition WebGL shader color smoothly with GSAP
-    const observer = new MutationObserver(() => {
-      const darkNow = document.documentElement.classList.contains('dark');
-      if (darkNow !== isDark) {
-        isDark = darkNow;
-        const nextColorStr = isDark ? '#000000' : '#ffffff';
-        const nextRgb = hexToRgb(nextColorStr);
-        
-        gsap.to(material.uniforms.uColor.value, {
-          x: nextRgb.r,
-          y: nextRgb.g,
-          z: nextRgb.b,
-          duration: 0.5,
-          ease: 'power2.out',
+        // 1. Initialize Lenis Smooth Scroll
+        const lenis = new Lenis({
+          duration: 1.2,
+          easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+          orientation: 'vertical',
+          gestureOrientation: 'vertical',
+          smoothWheel: true,
+          smoothTouch: false,
+          infinite: false,
         });
-      }
-    });
 
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class'],
-    });
+        let rafId;
+        function raf(time) {
+          lenis.raf(time);
+          ScrollTrigger.update();
+          rafId = requestAnimationFrame(raf);
+        }
+        rafId = requestAnimationFrame(raf);
 
-    const mesh = new THREE.Mesh(geometry, material);
-    scene.add(mesh);
+        // 2. Initialize Three.js Scene
+        const scene = new THREE.Scene();
+        const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        const renderer = new THREE.WebGLRenderer({
+          canvas,
+          alpha: true,
+          antialias: false,
+        });
 
-    let scrollProgress = 0;
-    let animId;
+        // Detect initial theme and set background color accordingly
+        let isDark = document.documentElement.classList.contains('dark');
+        const initialColor = isDark ? '#000000' : '#ffffff';
+        const rgb = hexToRgb(initialColor);
+        const geometry = new THREE.PlaneGeometry(2, 2);
+        
+        const material = new THREE.ShaderMaterial({
+          vertexShader,
+          fragmentShader,
+          uniforms: {
+            uProgress: { value: 0 },
+            uResolution: {
+              value: new THREE.Vector2(hero.offsetWidth || window.innerWidth, hero.offsetHeight || window.innerHeight),
+            },
+            uColor: { value: new THREE.Vector3(rgb.r, rgb.g, rgb.b) },
+            uSpread: { value: CONFIG.spread },
+          },
+          transparent: true,
+        });
 
-    function resize() {
-      if (!hero || !renderer) return;
-      const width = hero.offsetWidth || window.innerWidth;
-      const height = hero.offsetHeight || window.innerHeight;
-      renderer.setSize(width, height);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      material.uniforms.uResolution.value.set(width, height);
-    }
+        // Observe theme toggles and transition WebGL shader color smoothly with GSAP
+        const observer = new MutationObserver(() => {
+          const darkNow = document.documentElement.classList.contains('dark');
+          if (darkNow !== isDark) {
+            isDark = darkNow;
+            const nextColorStr = isDark ? '#000000' : '#ffffff';
+            const nextRgb = hexToRgb(nextColorStr);
+            
+            gsap.to(material.uniforms.uColor.value, {
+              x: nextRgb.r,
+              y: nextRgb.g,
+              z: nextRgb.b,
+              duration: 0.5,
+              ease: 'power2.out',
+            });
+          }
+        });
 
-    resize();
-    window.addEventListener('resize', resize);
+        observer.observe(document.documentElement, {
+          attributes: true,
+          attributeFilter: ['class'],
+        });
 
-    function animate() {
-      material.uniforms.uProgress.value = scrollProgress;
-      renderer.render(scene, camera);
-      animId = requestAnimationFrame(animate);
-    }
-    animate();
+        const mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
 
-    // 3. Lenis scroll listener to drive shader progress relative to page scroll
-    const onScroll = ({ scroll }) => {
-      const heroHeight = hero.offsetHeight;
-      if (heroHeight > 0) {
-        scrollProgress = Math.min((scroll / heroHeight) * CONFIG.speed, 1.1);
-      }
-    };
-    lenis.on('scroll', onScroll);
+        let scrollProgress = 0;
+        let animId;
 
-    // Clean up function on component unmount
+        function resize() {
+          if (!hero || !renderer) return;
+          const width = hero.offsetWidth || window.innerWidth;
+          const height = hero.offsetHeight || window.innerHeight;
+          renderer.setSize(width, height);
+          renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+          material.uniforms.uResolution.value.set(width, height);
+        }
+
+        resize();
+        window.addEventListener('resize', resize);
+
+        function animate() {
+          material.uniforms.uProgress.value = scrollProgress;
+          renderer.render(scene, camera);
+          animId = requestAnimationFrame(animate);
+        }
+        animate();
+
+        // 3. Lenis scroll listener to drive shader progress relative to page scroll
+        const onScroll = ({ scroll }) => {
+          const heroHeight = hero.offsetHeight;
+          if (heroHeight > 0) {
+            scrollProgress = Math.min((scroll / heroHeight) * CONFIG.speed, 1.1);
+          }
+        };
+        lenis.on('scroll', onScroll);
+
+        // Define cleanup handler inside then scope
+        cleanupFn = () => {
+          observer.disconnect();
+          cancelAnimationFrame(rafId);
+          cancelAnimationFrame(animId);
+          lenis.destroy();
+          window.removeEventListener('resize', resize);
+          if (geometry) geometry.dispose();
+          if (material) material.dispose();
+          if (renderer) renderer.dispose();
+          document.body.style.overflow = 'unset';
+        };
+      })
+      .catch((err) => {
+        console.error('Failed to load visual dependencies for HeroSection:', err);
+      });
+
     return () => {
-      // disconnect MutationObserver
-      observer.disconnect();
-
-      // cancel animation frames
-      cancelAnimationFrame(rafId);
-      cancelAnimationFrame(animId);
-      
-      // destroy Lenis
-      lenis.destroy();
-      
-      // dispose Three.js structures
-      window.removeEventListener('resize', resize);
-      if (geometry) geometry.dispose();
-      if (material) material.dispose();
-      if (renderer) renderer.dispose();
-      
-      // restore body scroll styling
-      document.body.style.overflow = 'unset';
+      active = false;
+      if (cleanupFn) cleanupFn();
     };
   }, []);
 

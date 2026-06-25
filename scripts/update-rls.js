@@ -27,6 +27,7 @@ async function main() {
     DROP POLICY IF EXISTS "Users can view their own orders" ON public.orders;
     DROP POLICY IF EXISTS "Users can view own orders or admins can view all" ON public.orders;
     DROP POLICY IF EXISTS "Admins can update orders" ON public.orders;
+    DROP POLICY IF EXISTS "Admins can delete orders" ON public.orders;
     
     CREATE POLICY "Users can view own orders or admins can view all" 
     ON public.orders FOR SELECT 
@@ -38,6 +39,11 @@ async function main() {
     TO authenticated
     USING (public.is_admin())
     WITH CHECK (public.is_admin());
+
+    CREATE POLICY "Admins can delete orders" 
+    ON public.orders FOR DELETE 
+    TO authenticated
+    USING (public.is_admin());
   `);
   console.log("Orders RLS policies updated!");
 

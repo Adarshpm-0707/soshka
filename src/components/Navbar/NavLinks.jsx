@@ -6,6 +6,7 @@ const NavLinks = ({ onClick, mobile = false }) => {
     { name: 'Home', path: '/' },
     { name: 'Products', path: '/products' },
     { name: 'About', path: '/about' },
+    { name: 'Reviews', path: '/reviews' },
     { name: 'Contact', path: '/contact' },
   ];
 

@@ -57,7 +57,7 @@ const AdminLoginPage = () => {
           userRole = data.user.email?.toLowerCase().includes('admin') || data.user.email === 'adarshpm0707@gmail.com' ? 'admin' : 'user';
         }
 
-        if (userRole === 'admin') {
+        if (userRole === 'admin' || userRole === 'superadmin') {
           showToast('Welcome back, Admin!', 'success');
           navigate(from, { replace: true });
         } else {

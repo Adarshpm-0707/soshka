@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { Search, Loader2, Package, Calendar, User, CreditCard, ChevronRight, X, AlertCircle } from 'lucide-react';
+import { Search, Loader2, Package, Calendar, User, CreditCard, ChevronRight, X, AlertCircle, Trash2 } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { showToast } from '../../components/Reusable/Toast';
 import { adminLogService } from '../../services/adminLogService';
@@ -14,6 +14,7 @@ const AdminOrdersPage = () => {
   // Order Detail Modal states
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [deletingOrder, setDeletingOrder] = useState(false);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -59,6 +60,37 @@ const AdminOrdersPage = () => {
       showToast('Failed to update status', 'error');
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  const handleDeleteOrder = async (orderId) => {
+    if (!window.confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
+      return;
+    }
+
+    setDeletingOrder(true);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .delete()
+        .eq('id', orderId);
+
+      if (error) throw error;
+
+      // Log the action in admin_logs
+      await adminLogService.logAction('deleted_order', 'orders', orderId, {
+        total: selectedOrder?.total,
+        customer: selectedOrder?.profile?.email || 'N/A'
+      });
+
+      showToast('Order deleted successfully', 'success');
+      setSelectedOrder(null);
+      await fetchOrders();
+    } catch (err) {
+      console.error('Error deleting order:', err);
+      showToast(err.message || 'Failed to delete order', 'error');
+    } finally {
+      setDeletingOrder(false);
     }
   };
 
@@ -300,6 +332,21 @@ const AdminOrdersPage = () => {
                       <span className="text-[#ff2a85] font-black">{formatCurrency(selectedOrder.total)}</span>
                     </div>
                   </div>
+                </div>
+
+                <div className="pt-3 border-t border-slate-205 dark:border-slate-800">
+                  <button
+                    onClick={() => handleDeleteOrder(selectedOrder.id)}
+                    disabled={deletingOrder}
+                    className="w-full flex items-center justify-center space-x-2 py-2.5 px-4 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-500 dark:text-red-400 rounded-xl text-xs font-extrabold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {deletingOrder ? (
+                      <Loader2 size={13} className="animate-spin" />
+                    ) : (
+                      <Trash2 size={13} />
+                    )}
+                    <span>Delete Order Record</span>
+                  </button>
                 </div>
               </div>
             </div>

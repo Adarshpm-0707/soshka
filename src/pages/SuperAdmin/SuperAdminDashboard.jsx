@@ -62,6 +62,7 @@ const SuperAdminDashboard = () => {
   else if (location.pathname.startsWith('/superadmin/orders')) activeTab = 'orders';
   else if (location.pathname.startsWith('/superadmin/payments')) activeTab = 'payments';
   else if (location.pathname.startsWith('/superadmin/logs')) activeTab = 'logs';
+  else if (location.pathname.startsWith('/superadmin/pandl')) activeTab = 'pandl';
 
   const setTab = (tabName) => {
     if (tabName === 'overview') navigate('/superadmin/dashboard');
@@ -329,6 +330,107 @@ const SuperAdminDashboard = () => {
     } catch (_) {}
   };
 
+  const getPandLStats = () => {
+    let filtered = orders.filter(order => order.status !== 'cancelled');
+
+    if (startDate) {
+      const start = new Date(startDate);
+      filtered = filtered.filter(order => new Date(order.created_at) >= start);
+    }
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      filtered = filtered.filter(order => new Date(order.created_at) <= end);
+    }
+
+    let totalRevenue = 0;
+    let totalCOGS = 0;
+
+    const productStats = {};
+    
+    products.forEach(p => {
+      productStats[p.id] = {
+        name: p.name,
+        category: p.category,
+        quantity: 0,
+        revenue: 0,
+        cost: Number(p.cost) || 0,
+        totalCost: 0,
+        profit: 0
+      };
+    });
+
+    const transactionList = filtered.map(order => {
+      let orderCOGS = 0;
+      
+      const itemsList = (order.items || []).map(item => {
+        const prodId = item.id;
+        const currentProd = products.find(p => p.id === prodId);
+        const itemCost = currentProd ? (Number(currentProd.cost) || 0) : 0;
+        const itemCOGS = itemCost * (item.quantity || 1);
+        
+        orderCOGS += itemCOGS;
+        
+        if (productStats[prodId]) {
+          productStats[prodId].quantity += item.quantity || 1;
+          productStats[prodId].revenue += (item.price || 0) * (item.quantity || 1);
+          productStats[prodId].totalCost += itemCOGS;
+        } else {
+          productStats[prodId] = {
+            name: item.name || 'Deleted Product',
+            category: 'N/A',
+            quantity: item.quantity || 1,
+            revenue: (item.price || 0) * (item.quantity || 1),
+            cost: itemCost,
+            totalCost: itemCOGS,
+          };
+        }
+
+        return {
+          ...item,
+          cost: itemCost,
+          cogs: itemCOGS
+        };
+      });
+
+      const orderRevenue = Number(order.total) || 0;
+      const orderProfit = orderRevenue - orderCOGS;
+      const orderMargin = orderRevenue > 0 ? (orderProfit / orderRevenue) * 100 : 0;
+
+      totalRevenue += orderRevenue;
+      totalCOGS += orderCOGS;
+
+      return {
+        ...order,
+        itemsWithCOGS: itemsList,
+        cogs: orderCOGS,
+        profit: orderProfit,
+        margin: orderMargin
+      };
+    });
+
+    const grossProfit = totalRevenue - totalCOGS;
+    const grossMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
+
+    const productStatsList = Object.keys(productStats)
+      .map(id => {
+        const item = productStats[id];
+        item.profit = item.revenue - item.totalCost;
+        item.margin = item.revenue > 0 ? (item.profit / item.revenue) * 100 : 0;
+        return { id, ...item };
+      })
+      .filter(item => item.quantity > 0);
+
+    return {
+      revenue: totalRevenue,
+      cogs: totalCOGS,
+      grossProfit,
+      grossMargin,
+      transactionList,
+      productStatsList
+    };
+  };
+
   // Trigger loads based on activeTab
   useEffect(() => {
     if (activeTab === 'overview') {
@@ -346,6 +448,9 @@ const SuperAdminDashboard = () => {
     } else if (activeTab === 'logs') {
       fetchLogs();
       fetchActors();
+    } else if (activeTab === 'pandl') {
+      fetchProducts();
+      fetchOrders();
     }
   }, [activeTab, selectedGateway, logsPage, actionFilter, tableFilter, actorFilter, startDate, endDate]);
 
@@ -1772,6 +1877,214 @@ const SuperAdminDashboard = () => {
           )}
         </div>
       )}
+
+      {/* VIEW: PROFIT & LOSS STATEMENTS */}
+      {activeTab === 'pandl' && (() => {
+        const { revenue, cogs, grossProfit, grossMargin, transactionList, productStatsList } = getPandLStats();
+        
+        return (
+          <div className="space-y-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <h2 className="text-2xl font-black tracking-tight flex items-center gap-2">
+                  <span className="p-1.5 bg-[#ff2a85]/10 text-[#ff2a85] rounded-lg border border-[#ff2a85]/20">
+                    <DollarSign size={20} />
+                  </span>
+                  Profit & Loss Statement
+                </h2>
+                <p className="text-slate-400 text-xs mt-1 font-semibold">
+                  Complete operational report detailing Gross Sales, Cost of Goods Sold (COGS), and Gross Margin performance.
+                </p>
+              </div>
+
+              {/* Date Filters */}
+              <div className="flex flex-wrap items-center gap-3 bg-[#0c0c0d] border border-[#1c1c1e] p-3 rounded-2xl">
+                <div className="flex items-center space-x-2 text-xs text-slate-400 font-bold uppercase">
+                  <Filter size={12} className="text-[#ff2a85]" />
+                  <span>Filter Period:</span>
+                </div>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="bg-slate-950 border border-[#26262a] text-slate-300 text-xs rounded-xl px-3 py-1.5 outline-none focus:border-[#ff2a85]"
+                />
+                <span className="text-slate-500 font-bold text-xs">to</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="bg-slate-950 border border-[#26262a] text-slate-350 text-xs rounded-xl px-3 py-1.5 outline-none focus:border-[#ff2a85]"
+                />
+                {(startDate || endDate) && (
+                  <button
+                    onClick={() => { setStartDate(''); setEndDate(''); }}
+                    className="p-1 px-2.5 rounded-lg bg-red-950/20 hover:bg-red-955/40 text-red-400 border border-red-550/10 text-[10px] font-extrabold uppercase transition"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* SUMMARY CARDS */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              {/* Gross Sales */}
+              <div className="bg-[#0c0c0d] border border-[#1c1c1e] p-6 rounded-3xl space-y-1 shadow-sm">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Gross Sales</span>
+                <h3 className="text-3xl font-black text-white">{formatCurrency(revenue)}</h3>
+                <p className="text-[11px] text-slate-400 font-bold">Total revenue from order sales</p>
+              </div>
+
+              {/* COGS */}
+              <div className="bg-[#0c0c0d] border border-[#1c1c1e] p-6 rounded-3xl space-y-1 shadow-sm">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Cost of Goods Sold (COGS)</span>
+                <h3 className="text-3xl font-black text-rose-400">{formatCurrency(cogs)}</h3>
+                <p className="text-[11px] text-slate-400 font-bold">Calculated total inventory cost</p>
+              </div>
+
+              {/* Gross Profit */}
+              <div className="bg-[#0c0c0d] border border-[#1c1c1e] p-6 rounded-3xl space-y-1 shadow-sm">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Gross Profit</span>
+                <h3 className={`text-3xl font-black ${grossProfit >= 0 ? 'text-emerald-400' : 'text-red-455'}`}>
+                  {formatCurrency(grossProfit)}
+                </h3>
+                <p className="text-[11px] text-slate-400 font-bold">Net operational profit amount</p>
+              </div>
+
+              {/* Gross Margin */}
+              <div className="bg-[#0c0c0d] border border-[#1c1c1e] p-6 rounded-3xl space-y-1 shadow-sm">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Gross Margin</span>
+                <h3 className={`text-3xl font-black ${grossMargin >= 25 ? 'text-emerald-400' : 'text-amber-450'}`}>
+                  {grossMargin.toFixed(2)}%
+                </h3>
+                <p className="text-[11px] text-slate-400 font-bold">Profit percent on operational sales</p>
+              </div>
+            </div>
+
+            {/* BREAKDOWN TABLES */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              
+              {/* Product Profitability Breakdown */}
+              <div className="lg:col-span-7 bg-[#0c0c0d] border border-[#1c1c1e] rounded-3xl shadow-sm overflow-hidden flex flex-col justify-between">
+                <div>
+                  <div className="p-6 border-b border-[#1c1c1e] flex justify-between items-center">
+                    <div>
+                      <h3 className="font-extrabold text-sm uppercase tracking-wider text-slate-300">Product Profitability</h3>
+                      <p className="text-[11px] text-slate-550 mt-0.5 font-semibold">Breakdown of earnings and cost margins per catalog item.</p>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-900/30 border-b border-[#1c1c1e] text-[9px] uppercase tracking-wider font-extrabold text-slate-400">
+                          <th className="py-3 px-6">Product Details</th>
+                          <th className="py-3 px-4 text-center">Units Sold</th>
+                          <th className="py-3 px-4 text-right">Revenue</th>
+                          <th className="py-3 px-4 text-right">COGS</th>
+                          <th className="py-3 px-4 text-right">Profit</th>
+                          <th className="py-3 px-6 text-center">Margin</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#1c1c1e] text-xs font-semibold text-slate-300">
+                        {productStatsList.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="py-12 text-center text-slate-500 font-bold">
+                              No product sales recorded in this period.
+                            </td>
+                          </tr>
+                        ) : (
+                          productStatsList.map((prod) => (
+                            <tr key={prod.id} className="hover:bg-white/[0.01] transition-colors">
+                              <td className="py-3 px-6">
+                                <span className="font-bold text-slate-200 block truncate max-w-[200px]">{prod.name}</span>
+                                <span className="text-[10px] text-slate-500 block font-normal">{prod.category}</span>
+                              </td>
+                              <td className="py-3 px-4 text-center font-bold text-slate-400">{prod.quantity}</td>
+                              <td className="py-3 px-4 text-right font-mono text-slate-200">{formatCurrency(prod.revenue)}</td>
+                              <td className="py-3 px-4 text-right font-mono text-rose-400/90">{formatCurrency(prod.totalCost)}</td>
+                              <td className={`py-3 px-4 text-right font-mono font-bold ${prod.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {formatCurrency(prod.profit)}
+                              </td>
+                              <td className="py-3 px-6 text-center">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
+                                  prod.margin >= 25 ? 'bg-emerald-950/40 text-emerald-400 border border-emerald-500/10' : 'bg-amber-950/40 text-amber-400 border border-amber-500/10'
+                                }`}>
+                                  {prod.margin.toFixed(1)}%
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* Transaction Statement Breakdown */}
+              <div className="lg:col-span-5 bg-[#0c0c0d] border border-[#1c1c1e] rounded-3xl shadow-sm overflow-hidden flex flex-col justify-between">
+                <div>
+                  <div className="p-6 border-b border-[#1c1c1e]">
+                    <h3 className="font-extrabold text-sm uppercase tracking-wider text-slate-350">Transaction Ledger</h3>
+                    <p className="text-[11px] text-slate-450 mt-0.5 font-semibold">Details and margins per individual transaction.</p>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-900/30 border-b border-[#1c1c1e] text-[9px] uppercase tracking-wider font-extrabold text-slate-400">
+                          <th className="py-3 px-6">Order ID & Date</th>
+                          <th className="py-3 px-4 text-right">Total</th>
+                          <th className="py-3 px-4 text-right">COGS</th>
+                          <th className="py-3 px-4 text-right">Profit</th>
+                          <th className="py-3 px-6 text-center">Margin</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#1c1c1e] text-xs font-semibold text-slate-300">
+                        {transactionList.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="py-12 text-center text-slate-500 font-bold">
+                              No transactions recorded in this period.
+                            </td>
+                          </tr>
+                        ) : (
+                          transactionList.slice(0, 15).map((order) => (
+                            <tr key={order.id} className="hover:bg-white/[0.01] transition-colors">
+                              <td className="py-3 px-6">
+                                <span className="font-mono text-[10px] text-slate-400 block uppercase select-all">
+                                  #{order.id.slice(0, 8)}
+                                </span>
+                                <span className="text-[10px] text-slate-500 block font-normal">
+                                  {new Date(order.created_at).toLocaleDateString()}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-right font-mono text-slate-200">{formatCurrency(order.total)}</td>
+                              <td className="py-3 px-4 text-right font-mono text-rose-400/90">{formatCurrency(order.cogs)}</td>
+                              <td className={`py-3 px-4 text-right font-mono font-bold ${order.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {formatCurrency(order.profit)}
+                              </td>
+                              <td className="py-3 px-6 text-center">
+                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold font-mono ${
+                                  order.margin >= 25 ? 'bg-emerald-950/40 text-emerald-400' : 'bg-amber-950/40 text-amber-400'
+                                }`}>
+                                  {order.margin.toFixed(0)}%
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );

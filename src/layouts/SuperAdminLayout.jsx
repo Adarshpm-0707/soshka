@@ -13,7 +13,8 @@ import {
   Crown,
   Users,
   Menu,
-  X
+  X,
+  DollarSign
 } from 'lucide-react';
 
 const SuperAdminLayout = () => {
@@ -47,6 +48,7 @@ const SuperAdminLayout = () => {
     { label: 'Products', path: '/superadmin/products', icon: ShoppingBag },
     { label: 'Orders Registry', path: '/superadmin/orders', icon: Package },
     { label: 'Payment Settings', path: '/superadmin/payments', icon: CreditCard },
+    { label: 'Profit & Loss', path: '/superadmin/pandl', icon: DollarSign },
     { label: 'Activity Logs', path: '/superadmin/logs', icon: Activity },
   ];
 

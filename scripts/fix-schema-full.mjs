@@ -213,6 +213,11 @@ CREATE POLICY "Admins can update orders"
   USING (public.is_admin())
   WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Admins can delete orders" ON public.orders;
+CREATE POLICY "Admins can delete orders"
+  ON public.orders FOR DELETE TO authenticated
+  USING (public.is_admin());
+
 -- ============================================================
 -- PART 9: OFFERS table - create if missing
 -- ============================================================

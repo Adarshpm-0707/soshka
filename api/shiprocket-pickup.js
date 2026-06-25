@@ -196,7 +196,10 @@ export default async function handler(req, res) {
 
     // 5. Save shipment metadata in Supabase
     console.log('Saving shipment details in local database...');
-    const pgConnectionString = 'postgresql://postgres:Soshka%40007%40@db.bmbegjxfkpyenndfbcdj.supabase.co:5432/postgres';
+    const pgConnectionString = process.env.DATABASE_URL;
+    if (!pgConnectionString) {
+      throw new Error('DATABASE_URL is not configured in the environment.');
+    }
     const dbClient = new Client({
       connectionString: pgConnectionString,
       ssl: { rejectUnauthorized: false }
