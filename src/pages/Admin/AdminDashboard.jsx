@@ -34,7 +34,8 @@ const AdminDashboard = () => {
           .select('*', { count: 'exact', head: true })
           .eq('role', 'user')
           .not('email', 'ilike', '%admin%')
-          .neq('email', 'adarshpm0707@gmail.com');
+          .neq('email', 'adarshpm0707@gmail.com')
+          .neq('email', 'soshka.in@gmail.com');
         if (uError) throw uError;
 
         // Fetch orders and revenue

@@ -26,6 +26,48 @@ const SuperAdminEditProductPage = () => {
   const [stock, setStock] = useState('');
   const [cost, setCost] = useState('');
   const [offerId, setOfferId] = useState('');
+  const [sku, setSku] = useState('');
+  const [discountPercent, setDiscountPercent] = useState('');
+
+  const handleOriginalPriceChange = (val) => {
+    setOriginalPrice(val);
+    if (val && discountPercent) {
+      const orig = Number(val);
+      const pct = Number(discountPercent);
+      if (orig > 0 && pct >= 0 && pct <= 100) {
+        const calculatedOffer = orig - (orig * pct) / 100;
+        setOfferPrice(Math.round(calculatedOffer).toString());
+      }
+    }
+  };
+
+  const handleDiscountChange = (val) => {
+    setDiscountPercent(val);
+    if (originalPrice && val) {
+      const orig = Number(originalPrice);
+      const pct = Number(val);
+      if (orig > 0 && pct >= 0 && pct <= 100) {
+        const calculatedOffer = orig - (orig * pct) / 100;
+        setOfferPrice(Math.round(calculatedOffer).toString());
+      }
+    } else {
+      setOfferPrice('');
+    }
+  };
+
+  const handleOfferPriceChange = (val) => {
+    setOfferPrice(val);
+    if (originalPrice && val) {
+      const orig = Number(originalPrice);
+      const offer = Number(val);
+      if (orig > 0 && offer >= 0 && offer <= orig) {
+        const calculatedPercent = Math.round(((orig - offer) / orig) * 100);
+        setDiscountPercent(calculatedPercent.toString());
+      }
+    } else {
+      setDiscountPercent('');
+    }
+  };
 
   // Exactly 3 image slots
   const [images, setImages] = useState(['', '', '']);
@@ -58,11 +100,21 @@ const SuperAdminEditProductPage = () => {
           setDescription(prodData.description || '');
           setCategory(prodData.category || '');
           setCategoryId(prodData.category_id || '');
-          setOriginalPrice(prodData.original_price ?? prodData.price ?? '');
-          setOfferPrice(prodData.offer_price ?? '');
+          const orig = prodData.original_price ?? prodData.price ?? '';
+          const offer = prodData.offer_price ?? '';
+          setOriginalPrice(orig);
+          setOfferPrice(offer);
           setStock(prodData.stock ?? '');
           setCost(prodData.cost ?? '');
           setOfferId(prodData.offer_id || '');
+          setSku(prodData.sku ?? '');
+
+          if (orig && offer) {
+            const calculatedPercent = Math.round(((Number(orig) - Number(offer)) / Number(orig)) * 100);
+            setDiscountPercent(calculatedPercent.toString());
+          } else {
+            setDiscountPercent('');
+          }
           
           // Ensure exactly 3 slots
           const productImages = prodData.images || [];
@@ -154,10 +206,12 @@ const SuperAdminEditProductPage = () => {
           price: Number(originalPrice),
           original_price: Number(originalPrice),
           offer_price: offerPrice ? Number(offerPrice) : null,
+          discount_price: offerPrice ? Number(offerPrice) : null,
           stock: Number(stock),
           cost: cost ? Number(cost) : 0,
           offer_id: offerId || null,
           images, // exactly 3 slots
+          sku,
         })
         .eq('id', id);
 
@@ -273,13 +327,30 @@ const SuperAdminEditProductPage = () => {
                   type="number"
                   placeholder="75000"
                   value={originalPrice}
-                  onChange={(e) => setOriginalPrice(e.target.value)}
+                  onChange={(e) => handleOriginalPriceChange(e.target.value)}
                   required
                   disabled={loading}
                   className="w-full bg-slate-950 border border-[#26262a] focus:border-[#ff2a85] text-white rounded-xl px-4 py-3 text-sm outline-none transition-colors placeholder:text-slate-655"
                 />
               </div>
 
+              <div className="space-y-1.5">
+                <label htmlFor="discountPercent" className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+                  Discount (%)
+                </label>
+                <input
+                  id="discountPercent"
+                  type="number"
+                  placeholder="10"
+                  value={discountPercent}
+                  onChange={(e) => handleDiscountChange(e.target.value)}
+                  disabled={loading}
+                  className="w-full bg-slate-950 border border-[#26262a] focus:border-[#ff2a85] text-white rounded-xl px-4 py-3 text-sm outline-none transition-colors placeholder:text-slate-655"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label htmlFor="offerPrice" className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
                   Offer Price (Promo)
@@ -289,7 +360,23 @@ const SuperAdminEditProductPage = () => {
                   type="number"
                   placeholder="68000"
                   value={offerPrice}
-                  onChange={(e) => setOfferPrice(e.target.value)}
+                  onChange={(e) => handleOfferPriceChange(e.target.value)}
+                  disabled={loading}
+                  className="w-full bg-slate-950 border border-[#26262a] focus:border-[#ff2a85] text-white rounded-xl px-4 py-3 text-sm outline-none transition-colors placeholder:text-slate-655"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="sku" className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+                  SKU
+                </label>
+                <input
+                  id="sku"
+                  type="text"
+                  placeholder="SS-XXXX"
+                  value={sku}
+                  onChange={(e) => setSku(e.target.value)}
+                  required
                   disabled={loading}
                   className="w-full bg-slate-950 border border-[#26262a] focus:border-[#ff2a85] text-white rounded-xl px-4 py-3 text-sm outline-none transition-colors placeholder:text-slate-655"
                 />

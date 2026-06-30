@@ -22,6 +22,55 @@ const AdminAddProductPage = () => {
   const [offerPrice, setOfferPrice] = useState('');
   const [stock, setStock] = useState('');
   const [offerId, setOfferId] = useState('');
+  const [sku, setSku] = useState('');
+  const [discountPercent, setDiscountPercent] = useState('');
+
+  // Auto-generate unique SKU on page mount
+  useEffect(() => {
+    const randomNum = Math.floor(1000 + Math.random() * 9000);
+    const dateStr = Date.now().toString().slice(-4);
+    setSku(`SS-${randomNum}-${dateStr}`);
+  }, []);
+
+  const handleOriginalPriceChange = (val) => {
+    setOriginalPrice(val);
+    if (val && discountPercent) {
+      const orig = Number(val);
+      const pct = Number(discountPercent);
+      if (orig > 0 && pct >= 0 && pct <= 100) {
+        const calculatedOffer = orig - (orig * pct) / 100;
+        setOfferPrice(Math.round(calculatedOffer).toString());
+      }
+    }
+  };
+
+  const handleDiscountChange = (val) => {
+    setDiscountPercent(val);
+    if (originalPrice && val) {
+      const orig = Number(originalPrice);
+      const pct = Number(val);
+      if (orig > 0 && pct >= 0 && pct <= 100) {
+        const calculatedOffer = orig - (orig * pct) / 100;
+        setOfferPrice(Math.round(calculatedOffer).toString());
+      }
+    } else {
+      setOfferPrice('');
+    }
+  };
+
+  const handleOfferPriceChange = (val) => {
+    setOfferPrice(val);
+    if (originalPrice && val) {
+      const orig = Number(originalPrice);
+      const offer = Number(val);
+      if (orig > 0 && offer >= 0 && offer <= orig) {
+        const calculatedPercent = Math.round(((orig - offer) / orig) * 100);
+        setDiscountPercent(calculatedPercent.toString());
+      }
+    } else {
+      setDiscountPercent('');
+    }
+  };
 
   // Exactly 3 image slots
   const [images, setImages] = useState(['', '', '']);
@@ -119,9 +168,11 @@ const AdminAddProductPage = () => {
           price: Number(originalPrice), // keep original price synced for retro-compatibility
           original_price: Number(originalPrice),
           offer_price: offerPrice ? Number(offerPrice) : null,
+          discount_price: offerPrice ? Number(offerPrice) : null,
           stock: Number(stock),
           offer_id: offerId || null,
           images, // exactly 3 slots
+          sku,
         })
         .select()
         .single();
@@ -216,18 +267,40 @@ const AdminAddProductPage = () => {
                 type="number"
                 placeholder="75000"
                 value={originalPrice}
-                onChange={(e) => setOriginalPrice(e.target.value)}
+                onChange={(e) => handleOriginalPriceChange(e.target.value)}
                 required
                 disabled={loading}
               />
 
+              <Input
+                label="Discount (%)"
+                id="discountPercent"
+                type="number"
+                placeholder="10"
+                value={discountPercent}
+                onChange={(e) => handleDiscountChange(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <Input
                 label="Offer Price (Promo)"
                 id="offerPrice"
                 type="number"
                 placeholder="68000"
                 value={offerPrice}
-                onChange={(e) => setOfferPrice(e.target.value)}
+                onChange={(e) => handleOfferPriceChange(e.target.value)}
+                disabled={loading}
+              />
+
+              <Input
+                label="SKU (Auto-Generated)"
+                id="sku"
+                placeholder="SS-XXXX"
+                value={sku}
+                onChange={(e) => setSku(e.target.value)}
+                required
                 disabled={loading}
               />
             </div>

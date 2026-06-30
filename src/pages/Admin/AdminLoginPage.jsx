@@ -51,10 +51,10 @@ const AdminLoginPage = () => {
             .select('role')
             .eq('id', data.user.id)
             .single();
-          userRole = profileData?.role || (data.user.email?.toLowerCase().includes('admin') || data.user.email === 'adarshpm0707@gmail.com' ? 'admin' : 'user');
+          userRole = profileData?.role || (data.user.email?.toLowerCase().includes('admin') || data.user.email === 'adarshpm0707@gmail.com' || data.user.email === 'soshka.in@gmail.com' ? 'admin' : 'user');
         } catch (err) {
           // If query fails, fall back to email validation
-          userRole = data.user.email?.toLowerCase().includes('admin') || data.user.email === 'adarshpm0707@gmail.com' ? 'admin' : 'user';
+          userRole = data.user.email?.toLowerCase().includes('admin') || data.user.email === 'adarshpm0707@gmail.com' || data.user.email === 'soshka.in@gmail.com' ? 'admin' : 'user';
         }
 
         if (userRole === 'admin' || userRole === 'superadmin') {

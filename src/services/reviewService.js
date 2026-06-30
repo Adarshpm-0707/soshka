@@ -91,6 +91,20 @@ export const reviewService = {
   },
 
   /**
+   * Fetch latest reviews across all products.
+   */
+  async getAllReviews(limit = 10) {
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('*, profile:profiles(name, avatar_url), product:products(name, image_url)')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+    return data;
+  },
+
+  /**
    * Submit a contact request form.
    */
   async submitContactRequest({ name, email, message }) {

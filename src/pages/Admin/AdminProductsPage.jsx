@@ -143,6 +143,7 @@ const AdminProductsPage = () => {
                 <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 text-[10px] uppercase tracking-wider font-extrabold text-slate-400">
                   <th className="py-4 px-6">Image</th>
                   <th className="py-4 px-6">Product Info</th>
+                  <th className="py-4 px-6">SKU</th>
                   <th className="py-4 px-6">Category</th>
                   <th className="py-4 px-6">Price</th>
                   <th className="py-4 px-6">Stock</th>
@@ -152,7 +153,7 @@ const AdminProductsPage = () => {
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50 text-sm font-semibold">
                 {filteredProducts.map((product) => {
-                  const hasOffer = product.offer_price && product.offers?.is_active;
+                  const hasOffer = !!(product.offer_price && Number(product.offer_price) > 0);
                   const originalPrice = product.original_price ?? product.price;
                   return (
                     <tr key={product.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
@@ -165,7 +166,12 @@ const AdminProductsPage = () => {
                       </td>
                       <td className="py-4 px-6">
                         <span className="text-slate-800 dark:text-slate-100 font-bold block line-clamp-1">{product.name}</span>
-                        <span className="text-[10px] text-slate-450 block truncate max-w-[200px]">{product.description || 'No description'}</span>
+                        <span className="text-[10px] text-slate-450 block truncate max-w-[200px] mt-0.5">{product.description || 'No description'}</span>
+                      </td>
+                      <td className="py-4 px-6 font-mono text-xs text-slate-700 dark:text-slate-350">
+                        <span className="bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg shadow-sm border border-slate-200/40 dark:border-slate-800/40">
+                          {product.sku || `SS-${product.id.slice(0, 8).toUpperCase()}`}
+                        </span>
                       </td>
                       <td className="py-4 px-6">
                         <span className="text-[10px] font-extrabold text-[#98183f] dark:text-[#ff2a85] uppercase tracking-widest">{product.category}</span>

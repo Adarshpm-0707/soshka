@@ -82,10 +82,10 @@ const ContactPage = () => {
       link: 'mailto:soshka.in@gmail.com'
     },
     { 
-      title: 'Call Us', 
-      desc: '+91 98465 45949',  
+      title: 'WhatsApp Us', 
+      desc: '+91 94964 65949',  
       icon: <Phone className="text-primary-600 dark:text-primary-450 h-5 w-5" />,
-      link: 'tel:+919846545949'
+      link: 'https://wa.me/919496465949'
     },
     { 
       title: 'Visit Us', 

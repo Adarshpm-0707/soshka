@@ -6,6 +6,7 @@ import HeroSection from './HeroSection';
 import CategoryBanner from './CategoryBanner';
 import FeaturedProducts from './FeaturedProducts';
 import { productService } from '../../services/productService';
+import ReviewsSection from '../../components/Home/ReviewsSection';
 
 const HomePage = () => {
   const [offers, setOffers] = useState([]);
@@ -76,6 +77,9 @@ const HomePage = () => {
 
       {/* Product Catalog Highlight Grid */}
       <FeaturedProducts />
+
+      {/* Community Reviews Section */}
+      <ReviewsSection />
     </div>
   );
 };

@@ -9,17 +9,18 @@ export const customerService = {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('role', 'user')
       .order('updated_at', { ascending: false });
 
     if (error) throw error;
     
-    // Client-side fallback filter to ensure no admin/superadmin accounts show up in the customer section
+    // Show all profiles except admin/superadmin accounts
     return (data || []).filter(
       (c) =>
-        c.email &&
-        !c.email.toLowerCase().includes('admin') &&
-        c.email.toLowerCase() !== 'adarshpm0707@gmail.com'
+        c.role !== 'admin' &&
+        c.role !== 'superadmin' &&
+        c.email?.toLowerCase() !== 'adarshpm0707@gmail.com' &&
+        c.email?.toLowerCase() !== 'soshka.in@gmail.com' &&
+        !c.email?.toLowerCase().includes('admin')
     );
   },
 

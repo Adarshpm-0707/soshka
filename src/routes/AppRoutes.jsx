@@ -53,6 +53,8 @@ const ContactPage = lazy(() => import("../pages/Contact/ContactPage"));
 const LoginPage = lazy(() => import("../pages/Login/LoginPage"));
 const RegisterPage = lazy(() => import("../pages/Register/RegisterPage"));
 const ReviewsPage = lazy(() => import("../pages/Reviews/ReviewsPage"));
+const TermsPage = lazy(() => import("../pages/Terms/TermsPage"));
+const RefundPolicyPage = lazy(() => import("../pages/RefundPolicy/RefundPolicyPage"));
 
 const AppRoutes = () => {
   return (
@@ -68,6 +70,8 @@ const AppRoutes = () => {
             <Route path="cart" element={<CartPage />} />
             <Route path="about" element={<AboutPage />} />
             <Route path="contact" element={<ContactPage />} />
+            <Route path="terms" element={<TermsPage />} />
+            <Route path="returns-refunds" element={<RefundPolicyPage />} />
             <Route path="login" element={<LoginPage />} />
             <Route path="register" element={<RegisterPage />} />
             <Route path="reviews" element={<ReviewsPage />} />

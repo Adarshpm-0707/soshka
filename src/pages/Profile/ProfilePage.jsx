@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import SectionTitle from '../../components/Reusable/SectionTitle';
 import Loader from '../../components/Reusable/Loader';
@@ -105,49 +106,74 @@ const ProfilePage = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-6">
         
-        {/* Left Side: Avatar Upload details */}
-        <div className="lg:col-span-1 bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-205 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center h-fit">
-          <div className="relative group cursor-pointer mb-4">
-            {avatarLoading ? (
-              <div className="h-28 w-28 rounded-full border border-slate-200 dark:border-slate-750 flex items-center justify-center">
-                <Loader size="sm" />
-              </div>
-            ) : (
-              <>
-                {profile?.avatar_url ? (
-                  <img
-                    src={profile.avatar_url}
-                    alt="Profile Avatar"
-                    className="h-28 w-28 rounded-full object-cover border-2 border-primary-500 dark:border-primary-600 shadow-sm group-hover:brightness-75 transition"
+        {/* Left Side: Avatar Upload details & Quick Links */}
+        <div className="lg:col-span-1 space-y-4">
+          <div className="bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-205 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center h-fit">
+            <div className="relative group cursor-pointer mb-4">
+              {avatarLoading ? (
+                <div className="h-28 w-28 rounded-full border border-slate-200 dark:border-slate-750 flex items-center justify-center">
+                  <Loader size="sm" />
+                </div>
+              ) : (
+                <>
+                  {profile?.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      alt="Profile Avatar"
+                      className="h-28 w-28 rounded-full object-cover border-2 border-primary-500 dark:border-primary-600 shadow-sm group-hover:brightness-75 transition"
+                    />
+                  ) : (
+                    <div className="h-28 w-28 rounded-full border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 group-hover:bg-slate-200 dark:group-hover:bg-slate-750 transition text-2xl font-bold uppercase">
+                      {(profile.name || 'U').charAt(0)}
+                    </div>
+                  )}
+                  <label
+                    htmlFor="avatar-file"
+                    className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition rounded-full bg-black/40 text-white cursor-pointer"
+                  >
+                    <Camera size={20} />
+                  </label>
+                  <input
+                    type="file"
+                    id="avatar-file"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                    className="hidden"
                   />
-                ) : (
-                  <div className="h-28 w-28 rounded-full border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 group-hover:bg-slate-200 dark:group-hover:bg-slate-750 transition text-2xl font-bold uppercase">
-                    {(profile.name || 'U').charAt(0)}
-                  </div>
-                )}
-                <label
-                  htmlFor="avatar-file"
-                  className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition rounded-full bg-black/40 text-white cursor-pointer"
-                >
-                  <Camera size={20} />
-                </label>
-                <input
-                  type="file"
-                  id="avatar-file"
-                  accept="image/*"
-                  onChange={handleAvatarChange}
-                  className="hidden"
-                />
-              </>
-            )}
+                </>
+              )}
+            </div>
+            <div>
+              <h4 className="font-extrabold text-slate-800 dark:text-white font-sans text-base">{profile.name}</h4>
+              <p className="text-xs font-semibold text-slate-450 dark:text-slate-500 truncate mt-0.5 max-w-[200px]">{user?.email}</p>
+            </div>
+            <span className="text-[9px] font-bold text-slate-400 dark:text-slate-550 uppercase tracking-widest mt-4">
+              Click avatar to upload image
+            </span>
           </div>
-          <div>
-            <h4 className="font-extrabold text-slate-800 dark:text-white font-sans text-base">{profile.name}</h4>
-            <p className="text-xs font-semibold text-slate-450 dark:text-slate-500 truncate mt-0.5 max-w-[200px]">{user?.email}</p>
+
+          {/* Quick Links Card */}
+          <div className="bg-white dark:bg-slate-850 p-5 rounded-2xl border border-slate-205 dark:border-slate-800 shadow-sm">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white font-sans border-b border-slate-100 dark:border-slate-800 pb-2 mb-3">
+              Quick Links
+            </h4>
+            <div className="flex flex-col space-y-1">
+              <Link
+                to="/terms"
+                className="flex items-center justify-between text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+              >
+                <span>Terms & Conditions</span>
+                <span className="text-xs text-slate-400 font-bold">&rarr;</span>
+              </Link>
+              <Link
+                to="/returns-refunds"
+                className="flex items-center justify-between text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+              >
+                <span>Returns & Refund Policy</span>
+                <span className="text-xs text-slate-400 font-bold">&rarr;</span>
+              </Link>
+            </div>
           </div>
-          <span className="text-[9px] font-bold text-slate-400 dark:text-slate-550 uppercase tracking-widest mt-4">
-            Click avatar to upload image
-          </span>
         </div>
 
         {/* Right Side: Form inputs */}

@@ -110,14 +110,12 @@ const ProductDetailPage = () => {
   const originalPrice = product.original_price ?? product.price;
   const offerPrice = product.offer_price;
   const offer = product.offers || product.offer;
-  const isOfferActive = !!(offerPrice && offer && offer.is_active);
+  const isOfferActive = !!(offerPrice && Number(offerPrice) > 0);
   const isFavorite = product ? isInWishlist(product.id) : false;
   
-  const savingsPercent = isOfferActive && offer.discount_percent
-    ? offer.discount_percent
-    : originalPrice && offerPrice
-      ? Math.round(((originalPrice - offerPrice) / originalPrice) * 100)
-      : null;
+  const savingsPercent = originalPrice && offerPrice && Number(offerPrice) > 0
+    ? Math.round(((originalPrice - offerPrice) / originalPrice) * 100)
+    : null;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 bg-slate-50 dark:bg-slate-950 transition-colors duration-300 min-h-screen">
@@ -149,6 +147,9 @@ const ProductDetailPage = () => {
             <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight" style={{ fontFamily: "'TT Drugs', sans-serif" }}>
               {product.name}
             </h1>
+            <span className="text-[10px] sm:text-xs font-mono font-bold text-slate-400 dark:text-slate-550 block">
+              SKU: {product.sku || `SS-${product.id.slice(0, 8).toUpperCase()}`}
+            </span>
             
             {/* Rating Stars Summary */}
             <div className="flex items-center space-x-2 pt-1">
@@ -182,7 +183,7 @@ const ProductDetailPage = () => {
                     </div>
                     {savingsPercent && (
                       <span className="inline-flex mt-2 text-[10px] font-black text-[#ff2a85] bg-[#ff2a85]/10 px-2.5 py-1 rounded-lg w-fit uppercase tracking-wider">
-                        🏷️ Special campaign: {offer.message} ({savingsPercent}% OFF)
+                        🏷️ {offer ? `Special campaign: ${offer.message}` : 'Special Offer'} ({savingsPercent}% OFF)
                       </span>
                     )}
                   </div>
@@ -192,6 +193,9 @@ const ProductDetailPage = () => {
                   </span>
                 )}
               </div>
+              <span className="text-[10px] text-slate-400 dark:text-slate-550 font-bold block mt-1.5 leading-none">
+                Inclusive of GST and all taxes
+              </span>
             </div>
 
             {/* Stock details */}

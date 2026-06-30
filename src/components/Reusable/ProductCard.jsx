@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Heart, ShoppingCart, Star } from 'lucide-react';
 import { useCart } from '../../hooks/useCart';
@@ -8,6 +8,7 @@ import { formatCurrency } from '../../utils/formatCurrency';
 import { showToast } from './Toast';
 
 const ProductCard = ({ product }) => {
+  const navigate = useNavigate();
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
 
@@ -40,10 +41,21 @@ const ProductCard = ({ product }) => {
     }
   };
 
+  const handleBuyNow = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await addToCart(product, 1);
+      navigate('/cart');
+    } catch (err) {
+      showToast(err.message || 'Error adding to cart', 'error');
+    }
+  };
+
   const originalPrice = product.original_price ?? product.price;
   const offerPrice = product.offer_price;
   const offer = product.offers || product.offer;
-  const isOfferActive = !!(offerPrice && offer && offer.is_active);
+  const isOfferActive = !!(offerPrice && Number(offerPrice) > 0);
 
   return (
     <motion.div
@@ -79,8 +91,8 @@ const ProductCard = ({ product }) => {
 
         {/* Sale badge */}
         {isOfferActive && (
-          <span className="absolute top-3 left-3 px-2.5 py-1 bg-[#98183f] dark:bg-[#ff2a85] text-white text-[9px] font-extrabold rounded-lg uppercase tracking-wider shadow-sm max-w-[80%] truncate" title={offer.message}>
-            {offer.message}
+          <span className="absolute top-3 left-3 px-2.5 py-1 bg-[#98183f] dark:bg-[#ff2a85] text-white text-[9px] font-extrabold rounded-lg uppercase tracking-wider shadow-sm max-w-[80%] truncate" title={offer?.message || 'Offer'}>
+            {offer?.message || `${Math.round(((originalPrice - offerPrice) / originalPrice) * 100)}% OFF`}
           </span>
         )}
       </Link>
@@ -94,7 +106,7 @@ const ProductCard = ({ product }) => {
         </span>
 
         {/* Product Name */}
-        <Link to={`/products/${product.id}`} className="hover:text-[#98183f] transition-colors">
+        <Link to={`/products/${product.id}`} className="hover:text-[#98183f] transition-colors block h-[40px] sm:h-[44px] overflow-hidden">
           <h3 className="font-semibold text-slate-800 dark:text-slate-100 text-sm sm:text-[15px] leading-snug line-clamp-2">
             {product.name}
           </h3>
@@ -106,7 +118,7 @@ const ProductCard = ({ product }) => {
           <span className="text-xs font-bold text-slate-700 dark:text-slate-350">
             {product.rating || '0.0'}
           </span>
-          <span className="text-[10px] text-slate-400 dark:text-slate-500">
+          <span className="text-[10px] text-slate-400 dark:text-slate-550">
             ({product.review_count || 0})
           </span>
         </div>
@@ -115,7 +127,7 @@ const ProductCard = ({ product }) => {
         <div className="mt-auto pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
 
           {/* Price block */}
-          <div className="flex flex-col min-w-0">
+          <div className="flex flex-col min-w-0 h-[46px] sm:h-[50px] justify-end">
             {isOfferActive ? (
               <>
                 <span className="text-[10px] text-slate-400 line-through leading-none mb-0.5">
@@ -126,22 +138,42 @@ const ProductCard = ({ product }) => {
                 </span>
               </>
             ) : (
-              <span className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-tight truncate">
-                {formatCurrency(originalPrice)}
-              </span>
+              <>
+                <span className="text-[10px] text-transparent leading-none mb-0.5 select-none" aria-hidden="true">
+                  &nbsp;
+                </span>
+                <span className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-tight truncate">
+                  {formatCurrency(originalPrice)}
+                </span>
+              </>
             )}
+            <span className="text-[8px] sm:text-[9px] text-slate-400 dark:text-slate-500 font-bold mt-1 block leading-none">
+              incl. GST
+            </span>
           </div>
 
-          {/* Add to Cart */}
-          <button
-            onClick={handleAddToCart}
-            disabled={product.stock === 0}
-            title={product.stock === 0 ? 'Out of stock' : 'Add to Cart'}
-            className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-[#98183f] hover:bg-[#7a1232] dark:bg-[#98183f] dark:hover:bg-[#ff2a85] dark:hover:shadow-[0_0_15px_rgba(255,42,133,0.3)] disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-400 dark:disabled:shadow-none transition-all duration-300"
-          >
-            <ShoppingCart size={13} />
-            <span className="hidden sm:inline">Add</span>
-          </button>
+          {/* Action Buttons */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Add to Cart Icon-Button */}
+            <button
+              onClick={handleAddToCart}
+              disabled={product.stock === 0}
+              title={product.stock === 0 ? 'Out of stock' : 'Add to Cart'}
+              className="p-2 rounded-xl text-[#98183f] dark:text-[#ff2a85] bg-slate-100 dark:bg-slate-800 hover:bg-[#98183f]/10 dark:hover:bg-slate-700/60 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-400 transition-all duration-200"
+              aria-label="Add to Cart"
+            >
+              <ShoppingCart size={13} />
+            </button>
+
+            {/* Buy Now Button */}
+            <button
+              onClick={handleBuyNow}
+              disabled={product.stock === 0}
+              className="px-2.5 sm:px-3.5 py-2 rounded-xl text-[10px] sm:text-xs font-black text-white bg-[#98183f] hover:bg-[#7a1232] dark:bg-[#ff2a85] dark:hover:bg-[#e01f72] dark:hover:shadow-[0_0_15px_rgba(255,42,133,0.3)] disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-400 transition-all duration-200 shrink-0"
+            >
+              Buy Now
+            </button>
+          </div>
         </div>
       </div>
     </motion.div>

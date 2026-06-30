@@ -10,10 +10,9 @@ const OrderSummary = ({ showCheckoutBtn = true }) => {
   const { cartTotal, cartItems } = useCart();
   const navigate = useNavigate();
 
-  const isFreeShipping = cartTotal >= FREE_SHIPPING_THRESHOLD;
-  const shippingCost = cartTotal === 0 ? 0 : (isFreeShipping ? 0 : SHIPPING_CHARGES);
-  const taxCost = cartTotal * TAX_RATE;
-  const grandTotal = cartTotal + shippingCost + taxCost;
+  const shippingCost = 0;
+  const taxCost = 0;
+  const grandTotal = cartTotal;
 
   const handleCheckoutRedirect = () => {
     if (cartItems.length === 0) {
@@ -34,24 +33,6 @@ const OrderSummary = ({ showCheckoutBtn = true }) => {
           <span>Subtotal</span>
           <span className="text-slate-800 dark:text-white">{formatCurrency(cartTotal)}</span>
         </div>
-
-        <div className="flex justify-between text-slate-500 dark:text-slate-400">
-          <span>Shipping Charges</span>
-          <span className="text-slate-800 dark:text-white">
-            {shippingCost === 0 ? 'FREE' : formatCurrency(shippingCost)}
-          </span>
-        </div>
-
-        <div className="flex justify-between text-slate-500 dark:text-slate-400">
-          <span>GST Tax (18%)</span>
-          <span className="text-slate-800 dark:text-white">{formatCurrency(taxCost)}</span>
-        </div>
-
-        {!isFreeShipping && cartTotal > 0 && (
-          <p className="text-[10px] text-primary-600 bg-primary-50/20 px-2 py-1 rounded-lg">
-            Add {formatCurrency(FREE_SHIPPING_THRESHOLD - cartTotal)} more for FREE shipping!
-          </p>
-        )}
       </div>
 
       <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-4 text-base font-extrabold text-slate-900 dark:text-white">

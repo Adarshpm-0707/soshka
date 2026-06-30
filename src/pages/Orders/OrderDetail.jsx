@@ -53,9 +53,8 @@ const OrderDetail = () => {
   // We can calculate subtotal by multiplying items, then apply shipping/tax.
   const itemsList = order.items || [];
   const calculatedSubtotal = itemsList.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-  const isFreeShipping = calculatedSubtotal >= FREE_SHIPPING_THRESHOLD;
-  const shippingCost = calculatedSubtotal === 0 ? 0 : (isFreeShipping ? 0 : SHIPPING_CHARGES);
-  const taxCost = calculatedSubtotal * TAX_RATE;
+  const shippingCost = 0;
+  const taxCost = 0;
 
   const dateStr = new Date(order.created_at).toLocaleDateString(undefined, {
     weekday: 'long',
@@ -179,16 +178,6 @@ const OrderDetail = () => {
               <div className="flex justify-between">
                 <span>Subtotal</span>
                 <span className="text-slate-800 dark:text-white">{formatCurrency(calculatedSubtotal)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Shipping Charges</span>
-                <span className="text-slate-800 dark:text-white">
-                  {shippingCost === 0 ? 'FREE' : formatCurrency(shippingCost)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>GST Tax (18%)</span>
-                <span className="text-slate-800 dark:text-white">{formatCurrency(taxCost)}</span>
               </div>
               <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-3 text-sm font-extrabold text-slate-900 dark:text-white">
                 <span>Total Paid</span>

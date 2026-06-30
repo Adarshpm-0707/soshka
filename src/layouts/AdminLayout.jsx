@@ -20,7 +20,7 @@ const AdminLayout = () => {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const isAdmin = profile?.role === 'admin' || user?.email === 'adarshpm0707@gmail.com';
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'superadmin' || user?.email === 'adarshpm0707@gmail.com' || user?.email === 'soshka.in@gmail.com';
 
   if (!isAdmin) {
     return (

@@ -27,7 +27,7 @@ const RegisterPage = () => {
     setGeneralError('');
 
     // Admin separation check
-    if (email.toLowerCase().includes('admin') || email.toLowerCase() === 'adarshpm0707@gmail.com') {
+    if (email.toLowerCase().includes('admin') || email.toLowerCase() === 'adarshpm0707@gmail.com' || email.toLowerCase() === 'soshka.in@gmail.com') {
       setGeneralError("Emails containing 'admin' or system operators are reserved for administrative accounts. Please sign up using a customer email address.");
       showToast('Registration Denied', 'error');
       return;

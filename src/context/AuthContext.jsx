@@ -16,14 +16,14 @@ export const AuthProvider = ({ children }) => {
     try {
       const userProfile = await authService.getUserProfile(userId);
       // Fallback: If role column doesn't exist in profiles, check email
-      if (userProfile && !userProfile.role && (email?.toLowerCase().includes('admin') || email === 'adarshpm0707@gmail.com')) {
+      if (userProfile && !userProfile.role && (email?.toLowerCase().includes('admin') || email === 'adarshpm0707@gmail.com' || email === 'soshka.in@gmail.com')) {
         userProfile.role = 'admin';
       }
       setProfile(userProfile);
     } catch (err) {
       console.error('Error fetching profile:', err.message);
       // Fallback: Mock profile if email contains admin or is whitelisted
-      if (email?.toLowerCase().includes('admin') || email === 'adarshpm0707@gmail.com') {
+      if (email?.toLowerCase().includes('admin') || email === 'adarshpm0707@gmail.com' || email === 'soshka.in@gmail.com') {
         setProfile({
           id: userId,
           role: 'admin',
@@ -33,6 +33,26 @@ export const AuthProvider = ({ children }) => {
       } else {
         setProfile(null);
       }
+    }
+  };
+
+  // Upsert profile row for OAuth users (Google/Apple) who may not have one
+  const upsertOAuthProfile = async (user) => {
+    try {
+      const { supabase } = await import('../lib/supabaseClient');
+      const name = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Customer';
+      const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
+
+      await supabase.from('profiles').upsert({
+        id: user.id,
+        email: user.email,
+        name,
+        avatar_url: avatarUrl,
+        role: 'user',
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id', ignoreDuplicates: false });
+    } catch (err) {
+      console.error('Error upserting OAuth profile:', err.message);
     }
   };
 
@@ -59,6 +79,11 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       if (session?.user) {
         setUser(session.user);
+        // For OAuth providers (Google, Apple), ensure profile row exists
+        const provider = session.user.app_metadata?.provider;
+        if (event === 'SIGNED_IN' && (provider === 'google' || provider === 'apple')) {
+          await upsertOAuthProfile(session.user);
+        }
         await fetchProfile(session.user.id, session.user.email);
       } else {
         setUser(null);
@@ -187,7 +212,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const isSuperAdmin = profile?.role === 'superadmin';
-  const isAdmin = profile?.role === 'admin' || profile?.role === 'superadmin' || user?.email === 'adarshpm0707@gmail.com';
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'superadmin' || user?.email === 'adarshpm0707@gmail.com' || user?.email === 'soshka.in@gmail.com';
 
   const value = {
     user,

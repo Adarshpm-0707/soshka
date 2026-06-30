@@ -143,6 +143,7 @@ const SuperAdminProductsPage = () => {
                 <tr className="bg-slate-900/50 border-b border-[#1c1c1e] text-[10px] uppercase tracking-wider font-extrabold text-slate-400">
                   <th className="py-4 px-6">Image</th>
                   <th className="py-4 px-6">Product Info</th>
+                  <th className="py-4 px-6">SKU</th>
                   <th className="py-4 px-6">Category</th>
                   <th className="py-4 px-6">Price</th>
                   <th className="py-4 px-6">Stock</th>
@@ -152,7 +153,7 @@ const SuperAdminProductsPage = () => {
               </thead>
               <tbody className="divide-y divide-[#1c1c1e] text-sm font-semibold">
                 {filteredProducts.map((product) => {
-                  const hasOffer = product.offer_price && product.offers?.is_active;
+                  const hasOffer = !!(product.offer_price && Number(product.offer_price) > 0);
                   const originalPrice = product.original_price ?? product.price;
                   return (
                     <tr key={product.id} className="hover:bg-white/[0.01] transition-colors">
@@ -165,7 +166,12 @@ const SuperAdminProductsPage = () => {
                       </td>
                       <td className="py-4 px-6">
                         <span className="text-slate-100 font-bold block line-clamp-1">{product.name}</span>
-                        <span className="text-[10px] text-slate-500 block truncate max-w-[200px] font-normal">{product.description || 'No description'}</span>
+                        <span className="text-[10px] text-slate-500 block truncate max-w-[200px] font-normal mt-0.5">{product.description || 'No description'}</span>
+                      </td>
+                      <td className="py-4 px-6 font-mono text-xs text-[#ff2a85]">
+                        <span className="bg-slate-900 border border-[#26262a] px-2.5 py-1 rounded-lg shadow-sm">
+                          {product.sku || `SS-${product.id.slice(0, 8).toUpperCase()}`}
+                        </span>
                       </td>
                       <td className="py-4 px-6">
                         <span className="text-[10px] font-extrabold text-[#ff2a85] uppercase tracking-widest">{product.category}</span>

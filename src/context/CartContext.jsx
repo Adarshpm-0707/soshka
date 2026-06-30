@@ -245,7 +245,7 @@ export const CartProvider = ({ children }) => {
     const originalPrice = product.original_price ?? product.price ?? 0;
     const offerPrice = product.offer_price;
     const offer = product.offers || product.offer;
-    const isOfferActive = !!(offerPrice && offer && offer.is_active);
+    const isOfferActive = !!(offerPrice && Number(offerPrice) > 0);
     const unitPrice = isOfferActive ? offerPrice : originalPrice;
     return total + unitPrice * item.quantity;
   }, 0);
