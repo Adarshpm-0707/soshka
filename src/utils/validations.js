@@ -63,11 +63,15 @@ export function validateRegisterForm({ name, email, phone, password, confirmPass
 /**
  * Validates checkout address forms.
  */
-export function validateAddressForm({ name, phone, addressLine, city, state, postalCode }) {
+export function validateAddressForm({ name, email, phone, addressLine, city, state, postalCode }) {
   const errors = {};
 
   if (!name || name.trim().length < 2) {
     errors.name = 'Full name is required.';
+  }
+
+  if (!email || !validateEmail(email)) {
+    errors.email = 'Please provide a valid email address.';
   }
 
   if (!phone || !validatePhone(phone)) {

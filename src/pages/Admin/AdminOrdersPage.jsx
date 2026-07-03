@@ -202,8 +202,9 @@ const AdminOrdersPage = () => {
                     <td className="py-4 px-6">
                       <div className="space-y-1 max-w-[200px]">
                         {(order.items || []).map((item, idx) => (
-                          <div key={idx} className="text-xs truncate" title={`${item.name} x ${item.quantity}`}>
+                          <div key={idx} className="text-xs truncate" title={`${item.name} x ${item.quantity}${item.size ? ` (Size: ${item.size})` : ''}`}>
                             <span className="font-bold text-slate-700 dark:text-slate-200">{item.name}</span>
+                            {item.size && <span className="text-[9px] bg-slate-100 dark:bg-slate-850 px-1 py-0.2 rounded border border-slate-200/50 dark:border-slate-800 ml-1 text-slate-500">{item.size}</span>}
                             <span className="text-slate-450 text-[10px] ml-1">x{item.quantity}</span>
                           </div>
                         ))}
@@ -286,8 +287,9 @@ const AdminOrdersPage = () => {
                   <span className="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider flex items-center">
                     📍 Shipping Location
                   </span>
-                  <div className="text-xs font-semibold text-slate-505 leading-relaxed">
-                    <p>{selectedOrder.shipping_address?.name}</p>
+                  <div className="text-xs font-semibold text-slate-500 leading-relaxed">
+                    <p className="font-bold text-slate-800 dark:text-slate-200">{selectedOrder.shipping_address?.name}</p>
+                    {selectedOrder.shipping_address?.email && <p className="text-primary-600 font-bold">{selectedOrder.shipping_address.email}</p>}
                     <p>{selectedOrder.shipping_address?.addressLine || selectedOrder.shipping_address?.line1}</p>
                     {selectedOrder.shipping_address?.line2 && <p>{selectedOrder.shipping_address?.line2}</p>}
                     <p>{selectedOrder.shipping_address?.city}, {selectedOrder.shipping_address?.state} - {selectedOrder.shipping_address?.postalCode || selectedOrder.shipping_address?.postal_code}</p>
@@ -334,6 +336,91 @@ const AdminOrdersPage = () => {
                   </div>
                 </div>
 
+                <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                  <span className="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider flex items-center">
+                    📦 Shiprocket Shipping
+                  </span>
+                  {selectedOrder.shiprocket_shipment_id ? (
+                    <div className="text-xs font-semibold text-slate-500 space-y-1">
+                      <div className="flex justify-between">
+                        <span>Shipment ID:</span>
+                        <span className="text-slate-800 dark:text-white font-bold">{selectedOrder.shiprocket_shipment_id}</span>
+                      </div>
+                      {selectedOrder.shiprocket_awb && (
+                        <div className="flex justify-between">
+                          <span>AWB Code:</span>
+                          <span className="text-slate-800 dark:text-white font-mono">{selectedOrder.shiprocket_awb}</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-xs text-amber-500 font-bold">Not connected to Shiprocket yet</p>
+                      <button
+                        onClick={async () => {
+                          try {
+                            showToast('Connecting to Shiprocket...', 'info');
+                            const res = await fetch('/api/shiprocket-pickup', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                order: selectedOrder,
+                                email: selectedOrder.profile?.email || 'customer@soshka.in'
+                              })
+                            });
+                            const data = await res.json();
+                            if (res.ok && data.success) {
+                              showToast('Shiprocket pickup scheduled successfully!', 'success');
+                              setSelectedOrder(prev => ({
+                                ...prev,
+                                shiprocket_shipment_id: data.shipment_id,
+                                shiprocket_awb: data.awb_code
+                              }));
+                              fetchOrders();
+                            } else {
+                              throw new Error(data.error || 'Failed to connect');
+                            }
+                          } catch (err) {
+                            showToast(err.message, 'error');
+                          }
+                        }}
+                        className="w-full flex items-center justify-center space-x-2 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold transition-all"
+                      >
+                        Schedule Shiprocket Pickup
+                      </button>
+                    </div>
+                  )}
+                  
+                  <div className="pt-2">
+                    <button
+                      onClick={async () => {
+                        try {
+                          showToast('Resending invoice email...', 'info');
+                          const res = await fetch('/api/send-order-confirmation', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              order: selectedOrder,
+                              email: selectedOrder.shipping_address?.email || selectedOrder.profile?.email
+                            })
+                          });
+                          const data = await res.json();
+                          if (res.ok && data.success) {
+                            showToast('Invoice email sent successfully!', 'success');
+                          } else {
+                            throw new Error(data.error || 'Failed to send email');
+                          }
+                        } catch (err) {
+                          showToast(err.message, 'error');
+                        }
+                      }}
+                      className="w-full flex items-center justify-center space-x-2 py-2 px-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-extrabold transition-all"
+                    >
+                      Resend Invoice Email
+                    </button>
+                  </div>
+                </div>
+
                 <div className="pt-3 border-t border-slate-205 dark:border-slate-800">
                   <button
                     onClick={() => handleDeleteOrder(selectedOrder.id)}
@@ -365,9 +452,16 @@ const AdminOrdersPage = () => {
                         alt={item.name}
                         className="h-10 w-10 rounded-lg object-cover border border-slate-200 dark:border-slate-850"
                       />
-                      <div className="truncate">
+                      <div>
                         <span className="font-extrabold text-slate-800 dark:text-slate-100 block line-clamp-1">{item.name}</span>
-                        <span className="text-[10px] text-slate-450">{formatCurrency(item.price)} x {item.quantity}</span>
+                        <span className="text-[10px] text-slate-450 flex items-center gap-1.5 mt-0.5">
+                          <span>{formatCurrency(item.price)} x {item.quantity}</span>
+                          {item.size && (
+                            <span className="px-1 py-0.5 text-[8px] font-black rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-700">
+                              Size: {item.size}
+                            </span>
+                          )}
+                        </span>
                       </div>
                     </div>
                     <div className="text-right shrink-0">

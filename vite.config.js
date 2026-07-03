@@ -4,7 +4,9 @@ import createOrderHandler from './api/create-order.js'
 import verifyPaymentHandler from './api/verify-payment.js'
 import contactHandler from './api/contact.js'
 import shiprocketPickupHandler from './api/shiprocket-pickup.js'
+import sendOrderConfirmationHandler from './api/send-order-confirmation.js'
 
+// Trigger dev server middleware reload to refresh ES modules (email fallback prioritization update)
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // Load env variables
@@ -21,6 +23,7 @@ export default defineConfig(({ mode }) => {
   process.env.SHIPROCKET_EMAIL = env.SHIPROCKET_EMAIL;
   process.env.SHIPROCKET_PASSWORD = env.SHIPROCKET_PASSWORD;
   process.env.SHIPROCKET_PICKUP_LOCATION = env.SHIPROCKET_PICKUP_LOCATION;
+  process.env.SHIPROCKET_CHANNEL_ID = env.SHIPROCKET_CHANNEL_ID;
 
   return {
     plugins: [
@@ -66,6 +69,15 @@ export default defineConfig(({ mode }) => {
               }
               return;
             }
+            if (req.url.startsWith('/api/send-order-confirmation')) {
+              try {
+                await sendOrderConfirmationHandler(req, res);
+              } catch (err) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+              }
+              return;
+            }
             next();
           });
         }
@@ -73,6 +85,7 @@ export default defineConfig(({ mode }) => {
     ],
     server: {
       port: 3000,
+      strictPort: true,
       open: true,
       headers: {
         'X-Frame-Options': 'DENY',

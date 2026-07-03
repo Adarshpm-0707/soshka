@@ -16,13 +16,14 @@ export const cartService = {
   /**
    * Add a product to the cart. If the product is already in the cart, increment quantity.
    */
-  async addToCart(userId, productId, quantity = 1) {
+  async addToCart(userId, productId, quantity = 1, size = '') {
     // Check if the item already exists in the user's cart
     const { data: existing, error: fetchError } = await supabase
       .from('cart_items')
       .select('id, quantity')
       .eq('user_id', userId)
       .eq('product_id', productId)
+      .eq('size', size || '')
       .maybeSingle();
 
     if (fetchError) throw fetchError;
@@ -41,7 +42,7 @@ export const cartService = {
       // Insert new cart item
       const { data, error } = await supabase
         .from('cart_items')
-        .insert({ user_id: userId, product_id: productId, quantity })
+        .insert({ user_id: userId, product_id: productId, quantity, size: size || '' })
         .select()
         .single();
       if (error) throw error;

@@ -70,8 +70,13 @@ const CartItem = ({ item }) => {
           <p className="text-[10px] font-extrabold text-[#98183f] dark:text-[#ff2a85] uppercase tracking-widest mt-0.5">
             {product.category}
           </p>
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-            {formatCurrency(unitPrice)} / unit
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 flex items-center gap-2">
+            <span>{formatCurrency(unitPrice)} / unit</span>
+            {item.size && (
+              <span className="px-2 py-0.5 text-[10px] font-black rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                Size: {item.size}
+              </span>
+            )}
           </p>
         </div>
       </div>

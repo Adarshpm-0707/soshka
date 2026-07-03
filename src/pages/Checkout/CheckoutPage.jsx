@@ -48,7 +48,7 @@ const CheckoutPage = () => {
         
         {/* Shipping Address Inputs column */}
         <div className="lg:col-span-2">
-          <AddressForm onSubmit={handleFilterChange => handleAddressSubmit(handleFilterChange)} />
+          <AddressForm onSubmit={(shippingAddress) => handleAddressSubmit(shippingAddress)} />
         </div>
 
         {/* Order Preview side panel */}

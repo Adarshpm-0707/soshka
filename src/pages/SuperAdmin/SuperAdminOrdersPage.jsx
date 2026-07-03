@@ -202,8 +202,9 @@ const SuperAdminOrdersPage = () => {
                     <td className="py-4 px-6">
                       <div className="space-y-1 max-w-[200px]">
                         {(order.items || []).map((item, idx) => (
-                          <div key={idx} className="text-xs truncate" title={`${item.name} x ${item.quantity}`}>
-                            <span className="font-bold text-slate-300">{item.name}</span>
+                          <div key={idx} className="text-xs truncate" title={`${item.name} x ${item.quantity}${item.size ? ` (Size: ${item.size})` : ''}`}>
+                            <span className="font-bold text-slate-350">{item.name}</span>
+                            {item.size && <span className="text-[9px] bg-slate-900 px-1 py-0.2 rounded border border-[#1c1c1e] ml-1 text-slate-400">{item.size}</span>}
                             <span className="text-slate-500 text-[10px] ml-1">x{item.quantity}</span>
                           </div>
                         ))}
@@ -287,7 +288,8 @@ const SuperAdminOrdersPage = () => {
                     📍 Shipping Location
                   </span>
                   <div className="text-xs font-semibold text-slate-400 leading-relaxed">
-                    <p>{selectedOrder.shipping_address?.name}</p>
+                    <p className="font-bold text-white">{selectedOrder.shipping_address?.name}</p>
+                    {selectedOrder.shipping_address?.email && <p className="text-primary-400 font-bold">{selectedOrder.shipping_address.email}</p>}
                     <p>{selectedOrder.shipping_address?.addressLine || selectedOrder.shipping_address?.line1}</p>
                     {selectedOrder.shipping_address?.line2 && <p>{selectedOrder.shipping_address?.line2}</p>}
                     <p>{selectedOrder.shipping_address?.city}, {selectedOrder.shipping_address?.state} - {selectedOrder.shipping_address?.postalCode || selectedOrder.shipping_address?.postal_code}</p>
@@ -334,6 +336,91 @@ const SuperAdminOrdersPage = () => {
                   </div>
                 </div>
 
+                <div className="space-y-2 pt-2 border-t border-[#1c1c1e]">
+                  <span className="text-[10px] uppercase font-extrabold text-slate-550 tracking-wider flex items-center">
+                    📦 Shiprocket Shipping
+                  </span>
+                  {selectedOrder.shiprocket_shipment_id ? (
+                    <div className="text-xs font-semibold text-slate-450 space-y-1">
+                      <div className="flex justify-between">
+                        <span>Shipment ID:</span>
+                        <span className="text-white font-bold">{selectedOrder.shiprocket_shipment_id}</span>
+                      </div>
+                      {selectedOrder.shiprocket_awb && (
+                        <div className="flex justify-between">
+                          <span>AWB Code:</span>
+                          <span className="text-white font-mono">{selectedOrder.shiprocket_awb}</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-xs text-amber-500 font-bold">Not connected to Shiprocket yet</p>
+                      <button
+                        onClick={async () => {
+                          try {
+                            showToast('Connecting to Shiprocket...', 'info');
+                            const res = await fetch('/api/shiprocket-pickup', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                order: selectedOrder,
+                                email: selectedOrder.profile?.email || 'customer@soshka.in'
+                              })
+                            });
+                            const data = await res.json();
+                            if (res.ok && data.success) {
+                              showToast('Shiprocket pickup scheduled successfully!', 'success');
+                              setSelectedOrder(prev => ({
+                                ...prev,
+                                shiprocket_shipment_id: data.shipment_id,
+                                shiprocket_awb: data.awb_code
+                              }));
+                              fetchOrders();
+                            } else {
+                              throw new Error(data.error || 'Failed to connect');
+                            }
+                          } catch (err) {
+                            showToast(err.message, 'error');
+                          }
+                        }}
+                        className="w-full flex items-center justify-center space-x-2 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold transition-all"
+                      >
+                        Schedule Shiprocket Pickup
+                      </button>
+                    </div>
+                  )}
+                  
+                  <div className="pt-2">
+                    <button
+                      onClick={async () => {
+                        try {
+                          showToast('Resending invoice email...', 'info');
+                          const res = await fetch('/api/send-order-confirmation', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              order: selectedOrder,
+                              email: selectedOrder.shipping_address?.email || selectedOrder.profile?.email
+                            })
+                          });
+                          const data = await res.json();
+                          if (res.ok && data.success) {
+                            showToast('Invoice email sent successfully!', 'success');
+                          } else {
+                            throw new Error(data.error || 'Failed to send email');
+                          }
+                        } catch (err) {
+                          showToast(err.message, 'error');
+                        }
+                      }}
+                      className="w-full flex items-center justify-center space-x-2 py-2 px-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-extrabold transition-all"
+                    >
+                      Resend Invoice Email
+                    </button>
+                  </div>
+                </div>
+
                 <div className="pt-3 border-t border-[#1c1c1e]">
                   <button
                     onClick={() => handleDeleteOrder(selectedOrder.id)}
@@ -365,9 +452,16 @@ const SuperAdminOrdersPage = () => {
                         alt={item.name}
                         className="h-10 w-10 rounded-lg object-cover border border-[#1c1c1e] bg-slate-900"
                       />
-                      <div className="truncate">
+                      <div>
                         <span className="font-extrabold text-slate-200 block line-clamp-1">{item.name}</span>
-                        <span className="text-[10px] text-slate-500">{formatCurrency(item.price)} x {item.quantity}</span>
+                        <span className="text-[10px] text-slate-500 flex items-center gap-1.5 mt-0.5">
+                          <span>{formatCurrency(item.price)} x {item.quantity}</span>
+                          {item.size && (
+                            <span className="px-1 py-0.5 text-[8px] font-black rounded bg-slate-900 text-slate-400 border border-[#1c1c1e]">
+                              Size: {item.size}
+                            </span>
+                          )}
+                        </span>
                       </div>
                     </div>
                     <div className="text-right shrink-0">

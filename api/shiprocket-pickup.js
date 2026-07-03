@@ -69,6 +69,7 @@ export default async function handler(req, res) {
   const email = process.env.SHIPROCKET_EMAIL;
   const password = process.env.SHIPROCKET_PASSWORD;
   const pickupLocation = process.env.SHIPROCKET_PICKUP_LOCATION || 'Primary';
+  const channelId = process.env.SHIPROCKET_CHANNEL_ID;
 
   if (!email || !password || email === 'your-shiprocket-email@domain.com') {
     console.warn('Shiprocket credentials are missing or default placeholders.');
@@ -127,6 +128,7 @@ export default async function handler(req, res) {
       order_id: orderUuid.slice(0, 20), // Max 20 characters for typical Shiprocket ID
       order_date: orderDate,
       pickup_location: pickupLocation,
+      channel_id: channelId ? parseInt(channelId, 10) : undefined,
       billing_customer_name: firstName,
       billing_last_name: lastName,
       billing_address: shipping_address.addressLine || shipping_address.address || 'Address Line 1',
@@ -141,7 +143,7 @@ export default async function handler(req, res) {
       payment_method: 'Prepaid',
       sub_total: parseFloat(total || '0'),
       length: 10, // cm (default package box size)
-      width: 10,  // cm
+      breadth: 10,  // cm
       height: 5,  // cm
       weight: 0.2 // kg
     };
@@ -166,11 +168,28 @@ export default async function handler(req, res) {
     const createData = await createOrderRes.json();
     console.log('Shiprocket order created:', createData);
 
-    const shipmentId = createData.shipment_id;
-    const awbCode = createData.awb_code || '';
+    let shipmentId = null;
+    let awbCode = '';
+
+    if (createData.shipment_id) {
+      shipmentId = createData.shipment_id;
+      awbCode = createData.awb_code || '';
+    } else if (createData.data && createData.data.shipment_id) {
+      shipmentId = createData.data.shipment_id;
+      awbCode = createData.data.awb_code || '';
+    } else if (createData.data && createData.data.data && Array.isArray(createData.data.data) && createData.data.data[0]) {
+      shipmentId = createData.data.data[0].shipment_id;
+      awbCode = createData.data.data[0].awb_code || '';
+    } else if (createData.data && Array.isArray(createData.data) && createData.data[0]) {
+      shipmentId = createData.data[0].shipment_id;
+      awbCode = createData.data[0].awb_code || '';
+    }
 
     if (!shipmentId) {
-      throw new Error('Shiprocket did not return a shipment ID.');
+      if (createData.message) {
+        throw new Error(`Shiprocket order creation failed: ${createData.message}`);
+      }
+      throw new Error(`Shiprocket did not return a shipment ID. Response: ${JSON.stringify(createData)}`);
     }
 
     // 4. Schedule courier pickup

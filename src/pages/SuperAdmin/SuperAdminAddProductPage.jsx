@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { adminLogService } from '../../services/adminLogService';
-import { ArrowLeft, Upload, Trash2, Loader2, Crown } from 'lucide-react';
+import { ArrowLeft, Upload, Trash2, Loader2, Crown, Plus } from 'lucide-react';
 import Input from '../../components/Reusable/Input';
 import Button from '../../components/Reusable/Button';
 import { showToast } from '../../components/Reusable/Toast';
@@ -16,6 +16,8 @@ const SuperAdminAddProductPage = () => {
   // Form Fields
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [specifications, setSpecifications] = useState('');
+  const [shippingPolicy, setShippingPolicy] = useState('');
   const [category, setCategory] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [originalPrice, setOriginalPrice] = useState('');
@@ -25,12 +27,51 @@ const SuperAdminAddProductPage = () => {
   const [offerId, setOfferId] = useState('');
   const [sku, setSku] = useState('');
   const [discountPercent, setDiscountPercent] = useState('');
+  const [sizes, setSizes] = useState([]);
+  const [availableSizes, setAvailableSizes] = useState(['XS', 'S', 'M', 'L', 'XL']);
 
-  // Auto-generate unique SKU on page mount
+  const handleSizeToggle = (size) => {
+    setSizes(prev =>
+      prev.includes(size) ? prev.filter(s => s !== size) : [...prev, size]
+    );
+  };
+
+  const handleAddNewSize = () => {
+    const newSize = window.prompt('Enter new size option (e.g. XXL, 7, Free Size):');
+    if (newSize && newSize.trim()) {
+      const trimmed = newSize.trim();
+      if (!availableSizes.includes(trimmed)) {
+        setAvailableSizes(prev => [...prev, trimmed]);
+      }
+      setSizes(prev => [...prev, trimmed]);
+    }
+  };
+
+  // Auto-generate sequential SKU on page mount
   useEffect(() => {
-    const randomNum = Math.floor(1000 + Math.random() * 9000);
-    const dateStr = Date.now().toString().slice(-4);
-    setSku(`SS-${randomNum}-${dateStr}`);
+    const fetchNextSku = async () => {
+      try {
+        const { data: existingProducts } = await supabase
+          .from('products')
+          .select('sku');
+        
+        let maxSku = 0;
+        if (existingProducts && existingProducts.length > 0) {
+          existingProducts.forEach(p => {
+            const skuNum = parseInt(p.sku, 10);
+            if (!isNaN(skuNum) && skuNum > maxSku) {
+              maxSku = skuNum;
+            }
+          });
+        }
+        setSku(String(maxSku + 1));
+      } catch (err) {
+        console.error('Error fetching SKU count:', err);
+        setSku(String(Math.floor(1000 + Math.random() * 9000)));
+      }
+    };
+
+    fetchNextSku();
   }, []);
 
   const handleOriginalPriceChange = (val) => {
@@ -163,9 +204,11 @@ const SuperAdminAddProductPage = () => {
           name,
           slug,
           description,
+          specifications,
+          shipping_policy: shippingPolicy,
           category,
           category_id: categoryId || null,
-           price: Number(originalPrice),
+          price: Number(originalPrice),
           original_price: Number(originalPrice),
           offer_price: offerPrice ? Number(offerPrice) : null,
           discount_price: offerPrice ? Number(offerPrice) : null,
@@ -174,6 +217,7 @@ const SuperAdminAddProductPage = () => {
           offer_id: offerId || null,
           images, // exactly 3 slots
           sku,
+          sizes,
         })
         .select()
         .single();
@@ -186,7 +230,7 @@ const SuperAdminAddProductPage = () => {
       }
 
       showToast('Product added successfully!', 'success');
-      navigate('/superadmin/products');
+      window.location.href = '/superadmin/products';
     } catch (err) {
       console.error('Error inserting product:', err);
       showToast(err.message || 'Error creating product', 'error');
@@ -217,98 +261,152 @@ const SuperAdminAddProductPage = () => {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-[#0c0c0d] border border-[#1c1c1e] rounded-3xl p-6 shadow-sm">
-          
-          {/* Left Column Fields */}
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label htmlFor="name" className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
-                Product Name *
-              </label>
-              <input
-                id="name"
-                type="text"
-                placeholder="e.g. Diamond Hoop Earrings"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                disabled={loading}
-                className="w-full bg-slate-950 border border-[#26262a] focus:border-[#ff2a85] text-white rounded-xl px-4 py-3 text-sm outline-none transition-colors placeholder:text-slate-655"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label htmlFor="description" className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
-                Description
-              </label>
-              <textarea
-                id="description"
-                rows={4}
-                placeholder="Detailed description of materials, sizes, and craftsmanship..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                disabled={loading}
-                className="w-full bg-slate-950 border border-[#26262a] focus:border-[#ff2a85] text-white rounded-xl px-4 py-3 text-sm outline-none transition-colors placeholder:text-slate-655 resize-none"
-              />
-            </div>
-
-            <div className="flex flex-col space-y-1.5">
-              <label className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
-                Category *
-              </label>
-              <select
-                value={categoryId}
-                onChange={handleCategoryChange}
-                required
-                disabled={loading}
-                className="w-full px-4 py-3 rounded-xl border border-[#26262a] focus:border-[#ff2a85] text-sm bg-slate-950 outline-none text-slate-300"
-              >
-                <option value="">-- Choose Category --</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+        {/* Section 1: Primary Attributes & Pricing */}
+        <div className="bg-[#0c0c0d] border border-[#1c1c1e] rounded-3xl p-6 shadow-sm space-y-6">
+          <div>
+            <h3 className="font-bold text-sm tracking-wide uppercase text-slate-200">Primary Attributes</h3>
+            <p className="text-slate-400 text-xs mt-0.5">Configure main product details, prices, and stock values.</p>
           </div>
 
-          {/* Right Column Fields */}
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
               <div className="space-y-1.5">
-                <label htmlFor="originalPrice" className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
-                  Original Price *
+                <label htmlFor="name" className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+                  Product Name *
                 </label>
                 <input
-                  id="originalPrice"
-                  type="number"
-                  placeholder="75000"
-                  value={originalPrice}
-                  onChange={(e) => handleOriginalPriceChange(e.target.value)}
+                  id="name"
+                  type="text"
+                  placeholder="e.g. Diamond Hoop Earrings"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   required
                   disabled={loading}
                   className="w-full bg-slate-950 border border-[#26262a] focus:border-[#ff2a85] text-white rounded-xl px-4 py-3 text-sm outline-none transition-colors placeholder:text-slate-655"
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label htmlFor="discountPercent" className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
-                  Discount (%)
+              <div className="flex flex-col space-y-1.5">
+                <label className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+                  Category *
                 </label>
-                <input
-                  id="discountPercent"
-                  type="number"
-                  placeholder="10"
-                  value={discountPercent}
-                  onChange={(e) => handleDiscountChange(e.target.value)}
+                <select
+                  value={categoryId}
+                  onChange={handleCategoryChange}
+                  required
                   disabled={loading}
-                  className="w-full bg-slate-950 border border-[#26262a] focus:border-[#ff2a85] text-white rounded-xl px-4 py-3 text-sm outline-none transition-colors placeholder:text-slate-655"
-                />
+                  className="w-full px-4 py-3 rounded-xl border border-[#26262a] focus:border-[#ff2a85] text-sm bg-slate-950 outline-none text-slate-300"
+                >
+                  <option value="">-- Choose Category --</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label htmlFor="sku" className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+                    SKU (Auto-Generated)
+                  </label>
+                  <input
+                    id="sku"
+                    type="text"
+                    placeholder="SS-XXXX"
+                    value={sku}
+                    onChange={(e) => setSku(e.target.value)}
+                    required
+                    disabled={loading}
+                    className="w-full bg-slate-950 border border-[#26262a] focus:border-[#ff2a85] text-white rounded-xl px-4 py-3 text-sm outline-none transition-colors placeholder:text-slate-655"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="stock" className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+                    Stock Quantity *
+                  </label>
+                  <input
+                    id="stock"
+                    type="number"
+                    placeholder="10"
+                    value={stock}
+                    onChange={(e) => setStock(e.target.value)}
+                    required
+                    disabled={loading}
+                    className="w-full bg-slate-950 border border-[#26262a] focus:border-[#ff2a85] text-white rounded-xl px-4 py-3 text-sm outline-none transition-colors placeholder:text-slate-655"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5 pt-2">
+                <label className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+                  Size Options (Choose available sizes)
+                </label>
+                <div className="flex items-center gap-3 flex-wrap">
+                  {availableSizes.map((sz) => {
+                    const isSelected = sizes.includes(sz);
+                    return (
+                      <button
+                        key={sz}
+                        type="button"
+                        onClick={() => handleSizeToggle(sz)}
+                        className={`px-4 py-2.5 text-xs font-black rounded-xl border transition-all ${
+                          isSelected
+                            ? 'bg-[#ff2a85] text-white border-[#ff2a85] shadow-lg shadow-pink-500/25'
+                            : 'bg-slate-950 text-slate-400 border-[#26262a] hover:border-slate-700'
+                        }`}
+                      >
+                        {sz}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={handleAddNewSize}
+                    className="px-3.5 py-2.5 text-xs font-black rounded-xl border border-dashed border-[#26262a] text-slate-400 hover:text-white hover:border-slate-500 transition-all flex items-center justify-center gap-1.5 bg-slate-950"
+                  >
+                    <Plus size={12} />
+                    Add Size
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label htmlFor="originalPrice" className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+                    Original Price *
+                  </label>
+                  <input
+                    id="originalPrice"
+                    type="number"
+                    placeholder="75000"
+                    value={originalPrice}
+                    onChange={(e) => handleOriginalPriceChange(e.target.value)}
+                    required
+                    disabled={loading}
+                    className="w-full bg-slate-950 border border-[#26262a] focus:border-[#ff2a85] text-white rounded-xl px-4 py-3 text-sm outline-none transition-colors placeholder:text-slate-655"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="discountPercent" className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+                    Discount (%)
+                  </label>
+                  <input
+                    id="discountPercent"
+                    type="number"
+                    placeholder="10"
+                    value={discountPercent}
+                    onChange={(e) => handleDiscountChange(e.target.value)}
+                    disabled={loading}
+                    className="w-full bg-slate-950 border border-[#26262a] focus:border-[#ff2a85] text-white rounded-xl px-4 py-3 text-sm outline-none transition-colors placeholder:text-slate-655"
+                  />
+                </div>
+              </div>
+
               <div className="space-y-1.5">
                 <label htmlFor="offerPrice" className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
                   Offer Price (Promo)
@@ -324,75 +422,97 @@ const SuperAdminAddProductPage = () => {
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label htmlFor="sku" className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
-                  SKU (Auto-Generated)
-                </label>
-                <input
-                  id="sku"
-                  type="text"
-                  placeholder="SS-XXXX"
-                  value={sku}
-                  onChange={(e) => setSku(e.target.value)}
-                  required
-                  disabled={loading}
-                  className="w-full bg-slate-950 border border-[#26262a] focus:border-[#ff2a85] text-white rounded-xl px-4 py-3 text-sm outline-none transition-colors placeholder:text-slate-655"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label htmlFor="cost" className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+                    Product Cost *
+                  </label>
+                  <input
+                    id="cost"
+                    type="number"
+                    placeholder="e.g. 5000"
+                    value={cost}
+                    onChange={(e) => setCost(e.target.value)}
+                    required
+                    disabled={loading}
+                    className="w-full bg-slate-950 border border-[#26262a] focus:border-[#ff2a85] text-white rounded-xl px-4 py-3 text-sm outline-none transition-colors placeholder:text-slate-655"
+                  />
+                </div>
+
+                <div className="flex flex-col space-y-1.5">
+                  <label className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+                    Link active campaign
+                  </label>
+                  <select
+                    value={offerId}
+                    onChange={(e) => setOfferId(e.target.value)}
+                    disabled={loading}
+                    className="w-full px-4 py-3 rounded-xl border border-[#26262a] focus:border-[#ff2a85] text-sm bg-slate-950 outline-none text-slate-300"
+                  >
+                    <option value="">-- Select Offer (Optional) --</option>
+                    {offers.map((off) => (
+                      <option key={off.id} value={off.id}>
+                        {off.title} ({off.discount_percent}%)
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
+          </div>
+        </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label htmlFor="stock" className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
-                  Stock Quantity *
-                </label>
-                <input
-                  id="stock"
-                  type="number"
-                  placeholder="10"
-                  value={stock}
-                  onChange={(e) => setStock(e.target.value)}
-                  required
-                  disabled={loading}
-                  className="w-full bg-slate-950 border border-[#26262a] focus:border-[#ff2a85] text-white rounded-xl px-4 py-3 text-sm outline-none transition-colors placeholder:text-slate-655"
-                />
-              </div>
+        {/* Section 2: Detailed Text Information */}
+        <div className="bg-[#0c0c0d] border border-[#1c1c1e] rounded-3xl p-6 shadow-sm space-y-4">
+          <div>
+            <h3 className="font-bold text-sm tracking-wide uppercase text-slate-200">Detailed Narrative</h3>
+            <p className="text-slate-400 text-xs mt-0.5">Provide customers with granular details across description, specifications, and policies.</p>
+          </div>
 
-              <div className="flex flex-col space-y-1.5">
-                <label className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
-                  Link active campaign
-                </label>
-                <select
-                  value={offerId}
-                  onChange={(e) => setOfferId(e.target.value)}
-                  disabled={loading}
-                  className="w-full px-4 py-3 rounded-xl border border-[#26262a] focus:border-[#ff2a85] text-sm bg-slate-950 outline-none text-slate-300"
-                >
-                  <option value="">-- Select Offer (Optional) --</option>
-                  {offers.map((off) => (
-                    <option key={off.id} value={off.id}>
-                      {off.title} ({off.discount_percent}%)
-                    </option>
-                  ))}
-                </select>
-              </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="space-y-1.5">
+              <label htmlFor="description" className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+                Description
+              </label>
+              <textarea
+                id="description"
+                rows={6}
+                placeholder="Detailed description of materials, sizes, and craftsmanship..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                disabled={loading}
+                className="w-full bg-slate-950 border border-[#26262a] focus:border-[#ff2a85] text-white rounded-xl px-4 py-3 text-sm outline-none transition-colors placeholder:text-slate-655 resize-none"
+              />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label htmlFor="cost" className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
-                  Product Cost *
-                </label>
-                <input
-                  id="cost"
-                  type="number"
-                  placeholder="e.g. 5000"
-                  value={cost}
-                  onChange={(e) => setCost(e.target.value)}
-                  required
-                  disabled={loading}
-                  className="w-full bg-slate-950 border border-[#26262a] focus:border-[#ff2a85] text-white rounded-xl px-4 py-3 text-sm outline-none transition-colors placeholder:text-slate-655"
-                />
-              </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="specifications" className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+                Specifications
+              </label>
+              <textarea
+                id="specifications"
+                rows={6}
+                placeholder="Detailed specifications (e.g. Dimensions, Weight, Purity)..."
+                value={specifications}
+                onChange={(e) => setSpecifications(e.target.value)}
+                disabled={loading}
+                className="w-full bg-slate-950 border border-[#26262a] focus:border-[#ff2a85] text-white rounded-xl px-4 py-3 text-sm outline-none transition-colors placeholder:text-slate-655 resize-none"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="shippingPolicy" className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+                Shipping & Policy
+              </label>
+              <textarea
+                id="shippingPolicy"
+                rows={6}
+                placeholder="Shipping times, delivery details, and return/refund policies..."
+                value={shippingPolicy}
+                onChange={(e) => setShippingPolicy(e.target.value)}
+                disabled={loading}
+                className="w-full bg-slate-950 border border-[#26262a] focus:border-[#ff2a85] text-white rounded-xl px-4 py-3 text-sm outline-none transition-colors placeholder:text-slate-655 resize-none"
+              />
             </div>
           </div>
         </div>

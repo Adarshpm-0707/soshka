@@ -15,10 +15,15 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  scroll-behavior: smooth;
+}
+
 @layer base {
   body {
     font-family: 'Plus Jakarta Sans', sans-serif;
     @apply antialiased selection:bg-primary-500/25;
+    -webkit-overflow-scrolling: touch;
   }
 }
 
@@ -899,5 +904,14 @@
   .inv-cards-crm {
     display: flex !important;
   }
+}
+
+/* Custom scrollbar utility to hide scrollbars */
+.scrollbar-none::-webkit-scrollbar {
+  display: none !important;
+}
+.scrollbar-none {
+  -ms-overflow-style: none !important;  /* IE and Edge */
+  scrollbar-width: none !important;  /* Firefox */
 }
 

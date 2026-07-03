@@ -6,10 +6,11 @@ import Button from '../../components/Reusable/Button';
 import { ShieldCheck } from 'lucide-react';
 
 const AddressForm = ({ onSubmit, loading = false }) => {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   
   const [formData, setFormData] = useState({
     name: '',
+    email: '',
     phone: '',
     addressLine: '',
     city: '',
@@ -24,6 +25,7 @@ const AddressForm = ({ onSubmit, loading = false }) => {
       const dbAddress = profile.address || {};
       setFormData({
         name: profile.name || '',
+        email: profile.email || user?.email || '',
         phone: profile.phone || '',
         addressLine: dbAddress.addressLine || '',
         city: dbAddress.city || '',
@@ -31,7 +33,7 @@ const AddressForm = ({ onSubmit, loading = false }) => {
         postalCode: dbAddress.postalCode || ''
       });
     }
-  }, [profile]);
+  }, [profile, user]);
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -60,7 +62,7 @@ const AddressForm = ({ onSubmit, loading = false }) => {
         Shipping Address
       </h3>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Input
           label="Full Name"
           id="name"
@@ -68,6 +70,18 @@ const AddressForm = ({ onSubmit, loading = false }) => {
           value={formData.name}
           onChange={handleChange}
           error={errors.name}
+          required
+          disabled={loading}
+        />
+
+        <Input
+          label="Email Address"
+          id="email"
+          type="email"
+          placeholder="email@example.com"
+          value={formData.email}
+          onChange={handleChange}
+          error={errors.email}
           required
           disabled={loading}
         />

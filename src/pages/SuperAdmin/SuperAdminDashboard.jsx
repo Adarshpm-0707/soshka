@@ -365,7 +365,7 @@ const SuperAdminDashboard = () => {
       let orderCOGS = 0;
       
       const itemsList = (order.items || []).map(item => {
-        const prodId = item.id;
+        const prodId = item.product_id || item.id;
         const currentProd = products.find(p => p.id === prodId);
         const itemCost = currentProd ? (Number(currentProd.cost) || 0) : 0;
         const itemCOGS = itemCost * (item.quantity || 1);
@@ -505,6 +505,7 @@ const SuperAdminDashboard = () => {
     try {
       await deleteAdmin(adminDeleteId);
       setAdminDeleteId(null);
+      fetchOverviewData();
     } catch (_) {} finally {
       setAdminDeleting(false);
     }
@@ -535,6 +536,7 @@ const SuperAdminDashboard = () => {
       setNewAdminEmail('');
       setNewAdminPassword('');
       fetchAdmins();
+      fetchOverviewData();
     } catch (err) {
       console.error(err);
       showToast(err.message || 'Failed to provision admin.', 'error');
@@ -552,6 +554,7 @@ const SuperAdminDashboard = () => {
       showToast('Customer account permanently deleted.', 'info');
       setCustomers((prev) => prev.filter((c) => c.id !== customerDeleteId));
       setCustomerDeleteId(null);
+      fetchOverviewData();
     } catch (err) {
       console.error(err);
       showToast(err.message || 'Failed to delete customer profile.', 'error');
@@ -599,6 +602,7 @@ const SuperAdminDashboard = () => {
       showToast('Product listings deleted successfully.', 'info');
       setProducts(prev => prev.filter(p => p.id !== productDeleteId));
       setProductDeleteId(null);
+      fetchOverviewData();
     } catch (err) {
       console.error(err);
       showToast(err.message || 'Failed to delete product listing.', 'error');
@@ -621,6 +625,7 @@ const SuperAdminDashboard = () => {
       showToast(`Order status updated to: ${newStatus}`, 'success');
       setSelectedOrder(prev => (prev ? { ...prev, status: newStatus } : null));
       fetchOrders();
+      fetchOverviewData();
     } catch (err) {
       console.error(err);
       showToast('Failed to update order status.', 'error');

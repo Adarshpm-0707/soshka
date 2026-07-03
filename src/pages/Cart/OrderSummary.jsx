@@ -10,9 +10,9 @@ const OrderSummary = ({ showCheckoutBtn = true }) => {
   const { cartTotal, cartItems } = useCart();
   const navigate = useNavigate();
 
-  const shippingCost = 0;
-  const taxCost = 0;
-  const grandTotal = cartTotal;
+  const shippingCost = cartTotal > 0 && cartTotal < FREE_SHIPPING_THRESHOLD ? SHIPPING_CHARGES : 0;
+  const taxCost = cartTotal * TAX_RATE;
+  const grandTotal = cartTotal + shippingCost + taxCost;
 
   const handleCheckoutRedirect = () => {
     if (cartItems.length === 0) {
@@ -33,6 +33,18 @@ const OrderSummary = ({ showCheckoutBtn = true }) => {
           <span>Subtotal</span>
           <span className="text-slate-800 dark:text-white">{formatCurrency(cartTotal)}</span>
         </div>
+        {shippingCost > 0 && (
+          <div className="flex justify-between text-slate-500 dark:text-slate-400">
+            <span>Shipping</span>
+            <span className="text-slate-800 dark:text-white">{formatCurrency(shippingCost)}</span>
+          </div>
+        )}
+        {taxCost > 0 && (
+          <div className="flex justify-between text-slate-500 dark:text-slate-400">
+            <span>GST ({TAX_RATE * 100}%)</span>
+            <span className="text-slate-800 dark:text-white">{formatCurrency(taxCost)}</span>
+          </div>
+        )}
       </div>
 
       <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-4 text-base font-extrabold text-slate-900 dark:text-white">

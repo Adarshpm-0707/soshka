@@ -6,7 +6,7 @@ import Loader from '../../components/Reusable/Loader';
 import Badge from '../../components/Reusable/Badge';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { SHIPPING_CHARGES, FREE_SHIPPING_THRESHOLD, TAX_RATE } from '../../utils/constants';
-import { ArrowLeft, MapPin, CreditCard, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, MapPin, CreditCard, ShieldCheck, MessageCircle } from 'lucide-react';
 import { showToast } from '../../components/Reusable/Toast';
 
 const OrderDetail = () => {
@@ -53,8 +53,8 @@ const OrderDetail = () => {
   // We can calculate subtotal by multiplying items, then apply shipping/tax.
   const itemsList = order.items || [];
   const calculatedSubtotal = itemsList.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-  const shippingCost = 0;
-  const taxCost = 0;
+  const shippingCost = calculatedSubtotal > 0 && calculatedSubtotal < FREE_SHIPPING_THRESHOLD ? SHIPPING_CHARGES : 0;
+  const taxCost = calculatedSubtotal * TAX_RATE;
 
   const dateStr = new Date(order.created_at).toLocaleDateString(undefined, {
     weekday: 'long',
@@ -118,8 +118,13 @@ const OrderDetail = () => {
                       <h5 className="font-bold text-slate-850 dark:text-white text-sm line-clamp-1">
                         {item.name}
                       </h5>
-                      <span className="text-xs text-slate-400 font-semibold">
-                        Qty: {item.quantity} x {formatCurrency(item.price)}
+                      <span className="text-xs text-slate-400 font-semibold flex items-center gap-2 mt-0.5">
+                        <span>Qty: {item.quantity} x {formatCurrency(item.price)}</span>
+                        {item.size && (
+                          <span className="px-1.5 py-0.5 text-[9px] font-black rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                            Size: {item.size}
+                          </span>
+                        )}
                       </span>
                     </div>
                   </div>
@@ -145,6 +150,7 @@ const OrderDetail = () => {
             </div>
             <div className="text-xs font-semibold text-slate-655 dark:text-slate-350 space-y-1">
               <p className="font-bold text-slate-900 dark:text-white">{order.shipping_address?.name}</p>
+              {order.shipping_address?.email && <p className="text-primary-600 dark:text-primary-400 font-bold">{order.shipping_address.email}</p>}
               <p>{order.shipping_address?.phone}</p>
               <p>{order.shipping_address?.addressLine}</p>
               <p>{order.shipping_address?.city}, {order.shipping_address?.state}</p>
@@ -169,6 +175,29 @@ const OrderDetail = () => {
             </div>
           </div>
 
+          {/* WhatsApp Updates Card */}
+          <div className="bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200/60 dark:border-slate-800 shadow-sm space-y-3.5 animate-fade-in">
+            <div className="flex items-center space-x-2 text-emerald-500 border-b border-slate-100 dark:border-slate-800 pb-3">
+              <MessageCircle size={16} />
+              <h4 className="font-bold text-sm text-slate-800 dark:text-white uppercase tracking-wider font-sans">
+                WhatsApp Updates
+              </h4>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold leading-relaxed">
+              Need assistance or want to receive delivery alerts directly on WhatsApp? Click below to share your order receipt with us.
+            </p>
+            <a
+              href={`https://api.whatsapp.com/send?phone=919999999999&text=${encodeURIComponent(
+                `Hi Sõshka! I just placed an order. Details:\nOrder ID: #${order.id.slice(0, 8).toUpperCase()}\nTotal paid: ${formatCurrency(order.total)}\nName: ${order.shipping_address?.name}`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full inline-flex items-center justify-center space-x-2 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold transition-all duration-300 shadow-lg shadow-emerald-500/15"
+            >
+              <span>Share Receipt via WhatsApp</span>
+            </a>
+          </div>
+
           {/* Invoice pricing Calculations */}
           <div className="bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200/60 dark:border-slate-800 shadow-sm space-y-3">
             <h4 className="font-bold text-sm text-slate-850 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-3 uppercase tracking-wider font-sans">
@@ -179,6 +208,18 @@ const OrderDetail = () => {
                 <span>Subtotal</span>
                 <span className="text-slate-800 dark:text-white">{formatCurrency(calculatedSubtotal)}</span>
               </div>
+              {shippingCost > 0 && (
+                <div className="flex justify-between">
+                  <span>Shipping</span>
+                  <span className="text-slate-800 dark:text-white">{formatCurrency(shippingCost)}</span>
+                </div>
+              )}
+              {taxCost > 0 && (
+                <div className="flex justify-between">
+                  <span>GST ({TAX_RATE * 100}%)</span>
+                  <span className="text-slate-800 dark:text-white">{formatCurrency(taxCost)}</span>
+                </div>
+              )}
               <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-3 text-sm font-extrabold text-slate-900 dark:text-white">
                 <span>Total Paid</span>
                 <span>{formatCurrency(order.total)}</span>

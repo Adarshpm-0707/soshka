@@ -28,11 +28,15 @@ const ProductDetailPage = () => {
   const [quantity, setQuantity] = useState(1);
   const [cartLoading, setCartLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('description');
+  const [selectedSize, setSelectedSize] = useState(null);
 
   const fetchProductDetails = useCallback(async () => {
     try {
       const data = await productService.getProductById(id);
       setProduct(data);
+      if (data && data.sizes && data.sizes.length > 0) {
+        setSelectedSize(data.sizes[0]);
+      }
       
       if (data) {
         const related = await productService.getRelatedProducts(data.category, data.id, 4);
@@ -60,9 +64,13 @@ const ProductDetailPage = () => {
   };
 
   const handleAddToCart = async () => {
+    if (product.sizes && product.sizes.length > 0 && !selectedSize) {
+      showToast('Please select a size', 'warning');
+      return;
+    }
     setCartLoading(true);
     try {
-      await addToCart(product, quantity);
+      await addToCart(product, quantity, selectedSize || '');
       showToast('Added to cart', 'success');
     } catch (err) {
       showToast(err.message || 'Failed to add to cart', 'error');
@@ -72,8 +80,12 @@ const ProductDetailPage = () => {
   };
 
   const handleBuyNow = async () => {
+    if (product.sizes && product.sizes.length > 0 && !selectedSize) {
+      showToast('Please select a size', 'warning');
+      return;
+    }
     try {
-      await addToCart(product, quantity);
+      await addToCart(product, quantity, selectedSize || '');
       navigate('/cart');
     } catch (err) {
       showToast('Checkout routing failed', 'error');
@@ -252,38 +264,76 @@ const ProductDetailPage = () => {
           {/* Tabs Content Area */}
           <div className="min-h-[100px] text-sm text-slate-600 dark:text-slate-350 leading-relaxed font-semibold">
             {activeTab === 'description' && (
-              <p>{product.description || 'No detailed product description has been configured for this listing yet.'}</p>
+              <p className="whitespace-pre-wrap">{product.description || 'No detailed product description has been configured for this listing yet.'}</p>
             )}
 
             {activeTab === 'specs' && (
-              <ul className="list-disc pl-5 space-y-1.5 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300">
-                <li>Material: Hypoallergenic Premium Jewelry Metal Alloy</li>
-                <li>Design category: {product.category}</li>
-                <li>Fine diamond and stone cuts for ultimate shine</li>
-                <li>Comes in premium signature Soshka presentation box</li>
-                <li>Certificate of authenticity included</li>
-              </ul>
+              <div className="whitespace-pre-wrap text-slate-700 dark:text-slate-300 text-xs sm:text-sm font-semibold">
+                {product.specifications ? (
+                  <p>{product.specifications}</p>
+                ) : (
+                  <ul className="list-disc pl-5 space-y-1.5 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300">
+                    <li>Material: Hypoallergenic Premium Jewelry Metal Alloy</li>
+                    <li>Design category: {product.category}</li>
+                    <li>Fine diamond and stone cuts for ultimate shine</li>
+                    <li>Comes in premium signature Soshka presentation box</li>
+                    <li>Certificate of authenticity included</li>
+                  </ul>
+                )}
+              </div>
             )}
 
             {activeTab === 'shipping' && (
-              <div className="space-y-4">
-                <div className="flex items-center space-x-3 text-slate-700 dark:text-slate-300">
-                  <Truck size={18} className="text-[#ff2a85] shrink-0" />
-                  <div>
-                    <h5 className="font-black text-xs uppercase tracking-wide">Free Shipping</h5>
-                    <p className="text-xs text-slate-500 font-semibold mt-0.5">Free standard shipping on orders above ₹999. Usually delivers in 3-5 business days.</p>
+              <div className="whitespace-pre-wrap text-slate-700 dark:text-slate-300 text-xs sm:text-sm font-semibold">
+                {product.shipping_policy ? (
+                  <p>{product.shipping_policy}</p>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-3">
+                      <Truck size={18} className="text-[#ff2a85] shrink-0" />
+                      <div>
+                        <h5 className="font-black text-xs uppercase tracking-wide">Free Shipping</h5>
+                        <p className="text-xs text-slate-500 font-semibold mt-0.5">Free standard shipping on orders above ₹999. Usually delivers in 3-5 business days.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <RefreshCw size={18} className="text-[#ff2a85] shrink-0" />
+                      <div>
+                        <h5 className="font-black text-xs uppercase tracking-wide">14-Day Easy Returns</h5>
+                        <p className="text-xs text-slate-500 font-semibold mt-0.5">We accept returns within 14 days of delivery. Must be unworn and in original box.</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center space-x-3 text-slate-700 dark:text-slate-300">
-                  <RefreshCw size={18} className="text-[#ff2a85] shrink-0" />
-                  <div>
-                    <h5 className="font-black text-xs uppercase tracking-wide">14-Day Easy Returns</h5>
-                    <p className="text-xs text-slate-500 font-semibold mt-0.5">We accept returns within 14 days of delivery. Must be unworn and in original box.</p>
-                  </div>
-                </div>
+                )}
               </div>
             )}
           </div>
+
+          {/* Size Selection */}
+          {product.sizes && product.sizes.length > 0 && (
+            <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800/80">
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-450 dark:text-slate-400 block">Select Size</span>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                {product.sizes.map((sz) => {
+                  const isSelected = selectedSize === sz;
+                  return (
+                    <button
+                      key={sz}
+                      type="button"
+                      onClick={() => setSelectedSize(sz)}
+                      className={`px-4 py-2 min-w-[45px] text-xs font-extrabold rounded-xl border transition-all ${
+                        isSelected
+                          ? 'bg-[#98183f] text-white border-[#98183f]'
+                          : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-350 border-slate-200 dark:border-slate-700 hover:border-slate-400'
+                      }`}
+                    >
+                      {sz}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Quantity Selection & Action Buttons */}
           {product.stock > 0 ? (
@@ -354,7 +404,7 @@ const ProductDetailPage = () => {
           {/* Secure Purchase guarantee indicator */}
           <div className="flex items-center space-x-2 pt-2 text-xs font-semibold text-slate-450">
             <ShieldCheck size={16} className="text-primary-600" />
-            <span>Secure Checkout with Razorpay • 100% Buyer Protection Guarantee</span>
+            <span>Instant Order Checkout • 100% Buyer Protection Guarantee</span>
           </div>
         </div>
       </div>

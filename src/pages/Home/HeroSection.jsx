@@ -102,8 +102,9 @@ const HeroSection = () => {
 
         gsap.registerPlugin(ScrollTrigger);
 
-        // 1. Initialize Lenis Smooth Scroll
-        const lenis = new Lenis({
+        // 1. Initialize Lenis Smooth Scroll only on desktop non-touch devices
+        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        const lenis = !isTouchDevice ? new Lenis({
           duration: 1.2,
           easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
           orientation: 'vertical',
@@ -111,11 +112,11 @@ const HeroSection = () => {
           smoothWheel: true,
           smoothTouch: false,
           infinite: false,
-        });
+        }) : null;
 
         let rafId;
         function raf(time) {
-          lenis.raf(time);
+          if (lenis) lenis.raf(time);
           ScrollTrigger.update();
           rafId = requestAnimationFrame(raf);
         }
@@ -198,21 +199,33 @@ const HeroSection = () => {
         }
         animate();
 
-        // 3. Lenis scroll listener to drive shader progress relative to page scroll
-        const onScroll = ({ scroll }) => {
+        // 3. Scroll listener to drive shader progress relative to page scroll
+        const onScroll = (scrollVal) => {
           const heroHeight = hero.offsetHeight;
           if (heroHeight > 0) {
-            scrollProgress = Math.min((scroll / heroHeight) * CONFIG.speed, 1.1);
+            scrollProgress = Math.min((scrollVal / heroHeight) * CONFIG.speed, 1.1);
           }
         };
-        lenis.on('scroll', onScroll);
+
+        let handleNativeScroll = null;
+        if (lenis) {
+          lenis.on('scroll', ({ scroll }) => onScroll(scroll));
+        } else {
+          handleNativeScroll = () => {
+            onScroll(window.scrollY);
+          };
+          window.addEventListener('scroll', handleNativeScroll, { passive: true });
+        }
 
         // Define cleanup handler inside then scope
         cleanupFn = () => {
           observer.disconnect();
           cancelAnimationFrame(rafId);
           cancelAnimationFrame(animId);
-          lenis.destroy();
+          if (lenis) lenis.destroy();
+          if (handleNativeScroll) {
+            window.removeEventListener('scroll', handleNativeScroll);
+          }
           window.removeEventListener('resize', resize);
           if (geometry) geometry.dispose();
           if (material) material.dispose();

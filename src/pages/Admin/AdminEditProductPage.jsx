@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
-import { ArrowLeft, Upload, Trash2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Upload, Trash2, Loader2, Plus } from 'lucide-react';
 import Input from '../../components/Reusable/Input';
 import Button from '../../components/Reusable/Button';
 import { showToast } from '../../components/Reusable/Toast';
@@ -19,6 +19,8 @@ const AdminEditProductPage = () => {
   // Form Fields
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [specifications, setSpecifications] = useState('');
+  const [shippingPolicy, setShippingPolicy] = useState('');
   const [category, setCategory] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [originalPrice, setOriginalPrice] = useState('');
@@ -27,6 +29,25 @@ const AdminEditProductPage = () => {
   const [offerId, setOfferId] = useState('');
   const [sku, setSku] = useState('');
   const [discountPercent, setDiscountPercent] = useState('');
+  const [sizes, setSizes] = useState([]);
+  const [availableSizes, setAvailableSizes] = useState(['XS', 'S', 'M', 'L', 'XL']);
+
+  const handleSizeToggle = (size) => {
+    setSizes(prev =>
+      prev.includes(size) ? prev.filter(s => s !== size) : [...prev, size]
+    );
+  };
+
+  const handleAddNewSize = () => {
+    const newSize = window.prompt('Enter new size option (e.g. XXL, 7, Free Size):');
+    if (newSize && newSize.trim()) {
+      const trimmed = newSize.trim();
+      if (!availableSizes.includes(trimmed)) {
+        setAvailableSizes(prev => [...prev, trimmed]);
+      }
+      setSizes(prev => [...prev, trimmed]);
+    }
+  };
 
   const handleOriginalPriceChange = (val) => {
     setOriginalPrice(val);
@@ -97,6 +118,8 @@ const AdminEditProductPage = () => {
         if (prodData) {
           setName(prodData.name || '');
           setDescription(prodData.description || '');
+          setSpecifications(prodData.specifications || '');
+          setShippingPolicy(prodData.shipping_policy || '');
           setCategory(prodData.category || '');
           setCategoryId(prodData.category_id || '');
           const orig = prodData.original_price ?? prodData.price ?? '';
@@ -106,6 +129,15 @@ const AdminEditProductPage = () => {
           setStock(prodData.stock ?? '');
           setOfferId(prodData.offer_id || '');
           setSku(prodData.sku ?? '');
+          const loadedSizes = prodData.sizes || [];
+          setSizes(loadedSizes);
+          setAvailableSizes(prev => {
+            const merged = [...prev];
+            loadedSizes.forEach(s => {
+              if (!merged.includes(s)) merged.push(s);
+            });
+            return merged;
+          });
 
           if (orig && offer) {
             const calculatedPercent = Math.round(((Number(orig) - Number(offer)) / Number(orig)) * 100);
@@ -199,6 +231,8 @@ const AdminEditProductPage = () => {
           name,
           slug,
           description,
+          specifications,
+          shipping_policy: shippingPolicy,
           category,
           category_id: categoryId || null,
           price: Number(originalPrice), // sync original price to price
@@ -209,6 +243,7 @@ const AdminEditProductPage = () => {
           offer_id: offerId || null,
           images, // exactly 3 slots
           sku,
+          sizes,
         })
         .eq('id', id);
 
@@ -218,7 +253,7 @@ const AdminEditProductPage = () => {
       await adminLogService.logAction('updated_product', 'products', id, { name });
 
       showToast('Product updated successfully!', 'success');
-      navigate('/admin/products');
+      window.location.href = '/admin/products';
     } catch (err) {
       console.error('Error updating product:', err);
       showToast(err.message || 'Error updating product', 'error');
@@ -255,78 +290,125 @@ const AdminEditProductPage = () => {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-3xl p-6 shadow-sm">
-          
-          {/* Left Column Fields */}
-          <div className="space-y-4">
-            <Input
-              label="Product Name"
-              id="name"
-              placeholder="e.g. Solitaire Diamond Ring"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              disabled={loading}
-            />
-
-            <Input
-              label="Description"
-              id="description"
-              type="textarea"
-              rows={4}
-              placeholder="Detailed description..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={loading}
-            />
-
-            <div className="flex flex-col space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Category *
-              </label>
-              <select
-                value={categoryId}
-                onChange={handleCategoryChange}
-                required
-                disabled={loading}
-                className="w-full px-4 py-2.5 rounded-lg border text-sm transition-colors duration-200 outline-none border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-              >
-                <option value="">-- Choose Category --</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+        {/* Section 1: Primary Attributes & Pricing */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-3xl p-6 shadow-sm space-y-6">
+          <div>
+            <h3 className="font-bold text-sm tracking-wide uppercase text-slate-800 dark:text-slate-200">Primary Attributes</h3>
+            <p className="text-slate-400 text-xs mt-0.5">Configure main product details, prices, and stock values.</p>
           </div>
 
-          {/* Right Column Fields */}
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
               <Input
-                label="Original Price *"
-                id="originalPrice"
-                type="number"
-                placeholder="75000"
-                value={originalPrice}
-                onChange={(e) => handleOriginalPriceChange(e.target.value)}
+                label="Product Name"
+                id="name"
+                placeholder="e.g. Solitaire Diamond Ring"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 required
                 disabled={loading}
               />
 
-              <Input
-                label="Discount (%)"
-                id="discountPercent"
-                type="number"
-                placeholder="10"
-                value={discountPercent}
-                onChange={(e) => handleDiscountChange(e.target.value)}
-                disabled={loading}
-              />
+              <div className="flex flex-col space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Category *
+                </label>
+                <select
+                  value={categoryId}
+                  onChange={handleCategoryChange}
+                  required
+                  disabled={loading}
+                  className="w-full px-4 py-2.5 rounded-lg border text-sm transition-colors duration-200 outline-none border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                >
+                  <option value="">-- Choose Category --</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="SKU"
+                  id="sku"
+                  placeholder="SS-XXXX"
+                  value={sku}
+                  onChange={(e) => setSku(e.target.value)}
+                  required
+                  disabled={loading}
+                />
+                <Input
+                  label="Stock Quantity *"
+                  id="stock"
+                  type="number"
+                  placeholder="10"
+                  value={stock}
+                  onChange={(e) => setStock(e.target.value)}
+                  required
+                  disabled={loading}
+                />
+              </div>
+
+              <div className="flex flex-col space-y-1.5 pt-2">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Size Options (Choose available sizes)
+                </label>
+                <div className="flex items-center gap-3 flex-wrap">
+                  {availableSizes.map((sz) => {
+                    const isSelected = sizes.includes(sz);
+                    return (
+                      <button
+                        key={sz}
+                        type="button"
+                        onClick={() => handleSizeToggle(sz)}
+                        className={`px-4 py-2 text-xs font-extrabold rounded-xl border transition-all ${
+                          isSelected
+                            ? 'bg-[#98183f] text-white border-[#98183f]'
+                            : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-705 hover:border-slate-400'
+                        }`}
+                      >
+                        {sz}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={handleAddNewSize}
+                    className="px-3 py-2 text-xs font-black rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-white hover:border-slate-400 dark:hover:border-slate-500 transition-all flex items-center justify-center gap-1"
+                  >
+                    <Plus size={12} />
+                    Add Size
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="Original Price *"
+                  id="originalPrice"
+                  type="number"
+                  placeholder="75000"
+                  value={originalPrice}
+                  onChange={(e) => handleOriginalPriceChange(e.target.value)}
+                  required
+                  disabled={loading}
+                />
+
+                <Input
+                  label="Discount (%)"
+                  id="discountPercent"
+                  type="number"
+                  placeholder="10"
+                  value={discountPercent}
+                  onChange={(e) => handleDiscountChange(e.target.value)}
+                  disabled={loading}
+                />
+              </div>
+
               <Input
                 label="Offer Price (Promo)"
                 id="offerPrice"
@@ -334,29 +416,6 @@ const AdminEditProductPage = () => {
                 placeholder="68000"
                 value={offerPrice}
                 onChange={(e) => handleOfferPriceChange(e.target.value)}
-                disabled={loading}
-              />
-
-              <Input
-                label="SKU"
-                id="sku"
-                placeholder="SS-XXXX"
-                value={sku}
-                onChange={(e) => setSku(e.target.value)}
-                required
-                disabled={loading}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Stock Quantity *"
-                id="stock"
-                type="number"
-                placeholder="10"
-                value={stock}
-                onChange={(e) => setStock(e.target.value)}
-                required
                 disabled={loading}
               />
 
@@ -379,6 +438,49 @@ const AdminEditProductPage = () => {
                 </select>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Section 2: Detailed Text Information */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-3xl p-6 shadow-sm space-y-4">
+          <div>
+            <h3 className="font-bold text-sm tracking-wide uppercase text-slate-800 dark:text-slate-200">Detailed Narrative</h3>
+            <p className="text-slate-400 text-xs mt-0.5">Provide customers with granular details across description, specifications, and policies.</p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Input
+              label="Description"
+              id="description"
+              type="textarea"
+              rows={6}
+              placeholder="Detailed description of materials, sizes, and craftsmanship..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={loading}
+            />
+
+            <Input
+              label="Specifications"
+              id="specifications"
+              type="textarea"
+              rows={6}
+              placeholder="Detailed specifications (e.g. Dimensions, Weight, Purity)..."
+              value={specifications}
+              onChange={(e) => setSpecifications(e.target.value)}
+              disabled={loading}
+            />
+
+            <Input
+              label="Shipping & Policy"
+              id="shippingPolicy"
+              type="textarea"
+              rows={6}
+              placeholder="Shipping times, delivery details, and return/refund policies..."
+              value={shippingPolicy}
+              onChange={(e) => setShippingPolicy(e.target.value)}
+              disabled={loading}
+            />
           </div>
         </div>
 

@@ -71,7 +71,7 @@ export const CartProvider = ({ children }) => {
       setLoading(true);
       if (localItems.length > 0) {
         for (const item of localItems) {
-          await cartService.addToCart(userId, item.product_id, item.quantity);
+          await cartService.addToCart(userId, item.product_id, item.quantity, item.size || '');
         }
         localStorage.removeItem('guest_cart');
       }
@@ -100,16 +100,16 @@ export const CartProvider = ({ children }) => {
   }, [user]);
 
   // ── Add to Cart ───────────────────────────────────────────────────────────
-  const addToCart = async (product, quantity = 1) => {
+  const addToCart = async (product, quantity = 1, size = '') => {
     setLoading(true);
     setError(null);
     try {
       if (user && dbAvailable) {
-        await cartService.addToCart(user.id, product.id, quantity);
+        await cartService.addToCart(user.id, product.id, quantity, size);
         await fetchCart();
       } else {
         const local = getLocalCart();
-        const existingIndex = local.findIndex(item => item.product_id === product.id);
+        const existingIndex = local.findIndex(item => item.product_id === product.id && (item.size || '') === size);
         if (existingIndex > -1) {
           local[existingIndex].quantity += quantity;
         } else {
@@ -119,6 +119,7 @@ export const CartProvider = ({ children }) => {
             product_id: product.id,
             quantity,
             product,
+            size,
           });
         }
         saveLocalCart(local);
@@ -127,7 +128,7 @@ export const CartProvider = ({ children }) => {
       if (isSchemaError(err)) {
         setDbAvailable(false);
         const local = getLocalCart();
-        const existingIndex = local.findIndex(item => item.product_id === product.id);
+        const existingIndex = local.findIndex(item => item.product_id === product.id && (item.size || '') === size);
         if (existingIndex > -1) {
           local[existingIndex].quantity += quantity;
         } else {
@@ -137,6 +138,7 @@ export const CartProvider = ({ children }) => {
             product_id: product.id,
             quantity,
             product,
+            size,
           });
         }
         saveLocalCart(local);
