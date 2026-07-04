@@ -25,6 +25,7 @@ const AdminCategoriesPage = lazy(() => import("../pages/Admin/AdminCategoriesPag
 const AdminOffersPage = lazy(() => import("../pages/Admin/AdminOffersPage"));
 const AdminOrdersPage = lazy(() => import("../pages/Admin/AdminOrdersPage"));
 const AdminCustomersPage = lazy(() => import("../pages/Admin/ManageCustomersPage"));
+const AdminReviewsPage = lazy(() => import("../pages/Admin/AdminReviewsPage"));
 
 const SuperAdminLoginPage = lazy(() => import("../pages/SuperAdmin/SuperAdminLoginPage"));
 const SuperAdminSignupPage = lazy(() => import("../pages/SuperAdmin/SuperAdminSignupPage"));
@@ -149,6 +150,7 @@ const AppRoutes = () => {
             <Route path="offers" element={<AdminOffersPage />} />
             <Route path="orders" element={<AdminOrdersPage />} />
             <Route path="customers" element={<AdminCustomersPage />} />
+            <Route path="reviews" element={<AdminReviewsPage />} />
           </Route>
 
           {/* Super Admin login & signup */}
@@ -176,6 +178,7 @@ const AppRoutes = () => {
             <Route path="logs" element={<SuperAdminDashboard />} />
             <Route path="customers" element={<SuperAdminDashboard />} />
             <Route path="pandl" element={<SuperAdminDashboard />} />
+            <Route path="reviews" element={<SuperAdminDashboard />} />
           </Route>
 
           {/* 404 Route */}

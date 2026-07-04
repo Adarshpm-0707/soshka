@@ -14,7 +14,9 @@ import {
   Users,
   Menu,
   X,
-  DollarSign
+  DollarSign,
+  Star,
+  RefreshCw
 } from 'lucide-react';
 
 const SuperAdminLayout = () => {
@@ -49,6 +51,7 @@ const SuperAdminLayout = () => {
     { label: 'Orders Registry', path: '/superadmin/orders', icon: Package },
     { label: 'Payment Settings', path: '/superadmin/payments', icon: CreditCard },
     { label: 'Profit & Loss', path: '/superadmin/pandl', icon: DollarSign },
+    { label: 'Store Reviews', path: '/superadmin/reviews', icon: Star },
     { label: 'Activity Logs', path: '/superadmin/logs', icon: Activity },
   ];
 
@@ -61,12 +64,21 @@ const SuperAdminLayout = () => {
           <Crown className="text-[#ff2a85] h-6 w-6" />
           <span className="text-base font-black tracking-wide bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">Soshka Super</span>
         </div>
-        <button
-          onClick={() => setIsMobileMenuOpen(true)}
-          className="p-1 text-slate-400 hover:text-white transition-colors"
-        >
-          <Menu size={24} />
-        </button>
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => window.location.reload()}
+            className="p-1 text-slate-400 hover:text-white transition-colors"
+            title="Refresh Panel"
+          >
+            <RefreshCw size={18} />
+          </button>
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="p-1 text-slate-400 hover:text-white transition-colors"
+          >
+            <Menu size={24} />
+          </button>
+        </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden relative">
@@ -118,6 +130,14 @@ const SuperAdminLayout = () => {
               })}
 
               <div className="h-[1px] bg-[#1c1c1e] my-4" />
+
+              <button
+                onClick={() => window.location.reload()}
+                className="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-400 hover:bg-[#1c1c1e] hover:text-white transition duration-200 w-full text-left"
+              >
+                <RefreshCw size={18} className="text-slate-400" />
+                <span>Refresh Panel</span>
+              </button>
 
               <Link 
                 to="/" 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Star, MessageCircle, Instagram, Quote, Sparkles, ShoppingBag } from 'lucide-react';
-import { reviewService } from '../../services/reviewService';
+import { storeReviewService } from '../../services/storeReviewService';
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 28 },
@@ -12,43 +12,16 @@ const fadeUp = (delay = 0) => ({
 });
 
 const ReviewsSection = () => {
-  const [dbReviews, setDbReviews] = useState([]);
+  const [storeReviews, setStoreReviews] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  const hardcodedReviews = [
-    {
-      name: "Ananya Iyer",
-      location: "Mumbai, MH",
-      rating: 5,
-      comment: "Absolutely in love with the Diamond Hoop Earrings! Soshka's curation is second to none. The shine under warm lighting is mesmerizing, and the locking mechanism feels extremely secure.",
-      date: "2 days ago",
-      isHardcoded: true
-    },
-    {
-      name: "Rohan Mehra",
-      location: "New Delhi, DL",
-      rating: 5,
-      comment: "Bought the Minimalist Gold Band for my wife's birthday. The packaging was beautiful, and she loved the quality of the finish. Definitely coming back for future anniversaries.",
-      date: "1 week ago",
-      isHardcoded: true
-    },
-    {
-      name: "Priyanka Sen",
-      location: "Kolkata, WB",
-      rating: 5,
-      comment: "Customer support was super helpful when I had to double-check my ring size. Fast shipping and the item looks premium. Soshka is now my go-to for daily wear jewelry.",
-      date: "3 weeks ago",
-      isHardcoded: true
-    }
-  ];
 
   useEffect(() => {
     const fetchReviews = async () => {
       try {
-        const data = await reviewService.getAllReviews(6);
-        setDbReviews(data || []);
+        const data = await storeReviewService.fetchStoreReviews();
+        setStoreReviews(data || []);
       } catch (err) {
-        console.error('Error loading reviews:', err);
+        console.error('Error loading store reviews:', err);
       } finally {
         setLoading(false);
       }
@@ -75,24 +48,79 @@ const ReviewsSection = () => {
     return `${months} month${months > 1 ? 's' : ''} ago`;
   };
 
-  // Combine database reviews with hardcoded ones to ensure the section is populated
-  const combinedReviews = [...dbReviews.map(r => ({
-    name: r.profile?.name || 'Customer',
-    location: 'Verified Buyer',
-    rating: r.rating,
-    comment: r.comment,
-    date: formatDate(r.created_at),
-    productName: r.product?.name,
-    productId: r.product_id,
-    avatarUrl: r.profile?.avatar_url,
-    isHardcoded: false
-  })), ...hardcodedReviews];
+  const socialReviews = storeReviews.filter(r => r.image_url);
+  
+  const displayWrittenReviews = storeReviews
+    .filter(r => r.comment)
+    .map(r => ({
+      id: r.id,
+      name: r.name,
+      location: r.location || 'Verified Buyer',
+      rating: r.rating,
+      comment: r.comment,
+      date: formatDate(r.created_at)
+    }))
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .slice(0, 10);
 
-  // Limit to maximum of 6 reviews to keep home page balanced
-  const displayReviews = combinedReviews.slice(0, 6);
+  if (!loading && socialReviews.length === 0 && displayWrittenReviews.length === 0) {
+    return null;
+  }
 
   return (
-    <section id="reviews" className="py-16 sm:py-24 bg-slate-50 dark:bg-black border-t border-slate-200/40 dark:border-white/5 transition-colors duration-300 w-full">
+    <section id="reviews" className="py-16 sm:py-24 bg-slate-50 dark:bg-black border-t border-slate-200/40 dark:border-white/5 transition-colors duration-300 w-full overflow-hidden">
+      
+      {/* Dynamic Style Block for Marquee Slide Train */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes marquee-reviews {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .animate-marquee-reviews-track {
+          display: flex;
+          width: max-content;
+          animation: marquee-reviews 38s linear infinite;
+        }
+        .animate-marquee-reviews-track:hover {
+          animation-play-state: paused;
+        }
+        .animate-marquee-social-track {
+          display: flex;
+          width: max-content;
+          animation: marquee-reviews 42s linear infinite;
+        }
+        .animate-marquee-social-track:hover {
+          animation-play-state: paused;
+        }
+        .mask-reviews-sides {
+          position: relative;
+        }
+        .mask-reviews-sides::before,
+        .mask-reviews-sides::after {
+          content: "";
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          width: 80px;
+          z-index: 10;
+          pointer-events: none;
+        }
+        .mask-reviews-sides::before {
+          left: 0;
+          background: linear-gradient(to right, rgb(255, 255, 255), rgba(255, 255, 255, 0));
+        }
+        .mask-reviews-sides::after {
+          right: 0;
+          background: linear-gradient(to left, rgb(255, 255, 255), rgba(255, 255, 255, 0));
+        }
+        .dark .mask-reviews-sides::before {
+          background: linear-gradient(to right, rgb(0, 0, 0), rgba(0, 0, 0, 0));
+        }
+        .dark .mask-reviews-sides::after {
+          background: linear-gradient(to left, rgb(0, 0, 0), rgba(0, 0, 0, 0));
+        }
+      `}} />
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* ── SECTION HEADER ── */}
@@ -121,124 +149,119 @@ const ReviewsSection = () => {
         </div>
 
         {/* ── SOCIAL SCREENSHOTS PROOFS ── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 items-start mb-20 max-w-5xl mx-auto">
-          {/* WhatsApp Card */}
-          <motion.div 
-            {...fadeUp(0.1)} 
-            className="bg-white dark:bg-[#0c0c0d] border border-slate-200/60 dark:border-[#1c1c1e] p-6 rounded-3xl shadow-sm flex flex-col items-center"
-          >
-            <div className="flex items-center gap-2 mb-4 text-[#25d366] font-bold text-xs uppercase tracking-wider self-start">
-              <MessageCircle size={16} fill="currentColor" className="text-[#25d366]" />
-              <span>WhatsApp Chat Proof</span>
-            </div>
-            <div className="w-full max-w-[320px] aspect-square rounded-2xl overflow-hidden border border-slate-200 dark:border-[#26262a] shadow-sm hover:scale-[1.02] transition-transform duration-300 bg-slate-50">
-              <img 
-                src="/img/reviews/whatsapp_review.png" 
-                alt="WhatsApp Review Screenshot" 
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                }}
-              />
-            </div>
-            <p className="text-xs text-slate-400 italic text-center mt-4">
-              "Packaging 10/10... shine is unbelievable!"
-            </p>
-          </motion.div>
-
-          {/* Instagram Card */}
-          <motion.div 
-            {...fadeUp(0.2)} 
-            className="bg-white dark:bg-[#0c0c0d] border border-slate-200/60 dark:border-[#1c1c1e] p-6 rounded-3xl shadow-sm flex flex-col items-center"
-          >
-            <div className="flex items-center gap-2 mb-4 text-[#e1306c] font-bold text-xs uppercase tracking-wider self-start">
-              <Instagram size={16} className="text-[#e1306c]" />
-              <span>Instagram Feed Post</span>
-            </div>
-            <div className="w-full max-w-[320px] aspect-square rounded-2xl overflow-hidden border border-slate-200 dark:border-[#26262a] shadow-sm hover:scale-[1.02] transition-transform duration-300 bg-slate-50">
-              <img 
-                src="/img/reviews/instagram_review.png" 
-                alt="Instagram Review Screenshot" 
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                }}
-              />
-            </div>
-            <p className="text-xs text-slate-400 italic text-center mt-4">
-              "Obsessed with this stack from @soshka.in ✨"
-            </p>
-          </motion.div>
-        </div>
-
-        {/* ── WRITTEN TESTIMONIALS (DB + TESTIMONIALS) ── */}
-        <div className="space-y-8">
-          <motion.div {...fadeUp()} className="text-center mb-8">
-            <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">
-              What Customers Say
-            </h3>
-            <div className="mt-2 text-rose-500 flex justify-center gap-0.5">
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} size={16} fill="currentColor" />
-              ))}
-            </div>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {displayReviews.map((review, idx) => (
-              <motion.div 
-                key={idx}
-                {...fadeUp(idx * 0.05)}
-                className="bg-white dark:bg-[#0c0c0d] border border-slate-200/60 dark:border-[#1c1c1e] p-6 rounded-2xl relative shadow-sm flex flex-col justify-between hover:border-slate-300 dark:hover:border-[#2a2a2d] transition-all duration-300"
-              >
-                <div className="space-y-3">
-                  <Quote className="text-rose-500/10 absolute top-4 right-4 h-10 w-10 pointer-events-none" />
-                  
-                  <div className="flex gap-0.5 text-rose-500">
-                    {[...Array(review.rating)].map((_, i) => (
-                      <Star key={i} size={12} fill="currentColor" />
-                    ))}
-                  </div>
-                  
-                  <p className="text-sm text-slate-600 dark:text-slate-350 leading-relaxed font-semibold">
-                    "{review.comment}"
-                  </p>
-                </div>
+        {socialReviews.length > 0 && (
+          <div className="mask-reviews-sides overflow-hidden w-full py-4 mb-20">
+            <div className="animate-marquee-social-track flex gap-8">
+              {[...socialReviews, ...socialReviews].map((review, idx) => {
+                const isWhatsApp = review.platform === 'whatsapp';
+                const isInstagram = review.platform === 'instagram';
                 
-                <div className="mt-6 pt-4 border-t border-slate-100 dark:border-white/5 space-y-3">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      {review.avatarUrl ? (
-                        <img 
-                          src={review.avatarUrl} 
-                          alt={review.name} 
-                          className="h-8 w-8 rounded-full object-cover border border-slate-200"
-                        />
-                      ) : (
-                        <div className="h-8 w-8 rounded-full bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-450 flex items-center justify-center text-xs font-bold uppercase">
-                          {review.name.charAt(0)}
+                let headerColor = "text-[#ff2a85]";
+                let headerText = "Customer Review Share";
+                let HeaderIcon = Sparkles;
+                
+                if (isWhatsApp) {
+                  headerColor = "text-[#25d366]";
+                  headerText = "WhatsApp Chat Proof";
+                  HeaderIcon = MessageCircle;
+                } else if (isInstagram) {
+                  headerColor = "text-[#e1306c]";
+                  headerText = "Instagram Feed Post";
+                  HeaderIcon = Instagram;
+                }
+
+                return (
+                  <div 
+                    key={`${review.id}-${idx}`}
+                    className="bg-white dark:bg-[#0c0c0d] border border-slate-200/60 dark:border-[#1c1c1e] p-6 rounded-3xl shadow-sm flex flex-col items-center w-[280px] md:w-[320px] shrink-0 whitespace-normal hover:border-slate-350 dark:hover:border-[#2a2a2d] transition-all duration-300"
+                  >
+                    <div className={`flex items-center gap-2 mb-4 ${headerColor} font-bold text-xs uppercase tracking-wider self-start`}>
+                      <HeaderIcon size={16} fill={isWhatsApp ? "currentColor" : "none"} />
+                      <span>{headerText}</span>
+                    </div>
+                    <div className="w-full aspect-square rounded-2xl overflow-hidden border border-slate-200 dark:border-[#26262a] shadow-sm bg-slate-50">
+                      <img 
+                        src={review.image_url} 
+                        alt={`${review.name}'s Social Review`} 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 italic text-center mt-4 px-2 leading-relaxed font-medium">
+                      "{review.comment}"
+                    </p>
+                    <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mt-2">
+                      — {review.name} {review.location ? `(${review.location})` : ''}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── WRITTEN TESTIMONIALS ── */}
+        {displayWrittenReviews.length > 0 && (
+          <div className="space-y-8">
+            <motion.div {...fadeUp()} className="text-center mb-8">
+              <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">
+                What Customers Say
+              </h3>
+              <div className="mt-2 text-rose-500 flex justify-center gap-0.5">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} size={16} fill="currentColor" />
+                ))}
+              </div>
+            </motion.div>
+
+            <div className="mask-reviews-sides overflow-hidden w-full py-4">
+              <div className="animate-marquee-reviews-track flex gap-6">
+                {[...displayWrittenReviews, ...displayWrittenReviews].map((review, idx) => (
+                  <div 
+                    key={`${review.id || idx}-${idx}`}
+                    className="bg-white dark:bg-[#0c0c0d] border border-slate-200/60 dark:border-[#1c1c1e] p-6 rounded-2xl relative shadow-sm flex flex-col justify-between hover:border-slate-350 dark:hover:border-[#2a2a2d] transition-all duration-300 w-[320px] md:w-[380px] shrink-0 whitespace-normal"
+                  >
+                    <div className="space-y-3">
+                      <Quote className="text-rose-500/10 absolute top-4 right-4 h-10 w-10 pointer-events-none" />
+                      
+                      <div className="flex gap-0.5 text-rose-500">
+                        {[...Array(review.rating)].map((_, i) => (
+                          <Star key={i} size={12} fill="currentColor" />
+                        ))}
+                      </div>
+                      
+                      <p className="text-sm text-slate-650 dark:text-slate-350 leading-relaxed font-semibold">
+                        "{review.comment}"
+                      </p>
+
+                      {/* Product Badge if available */}
+                      {review.productName && (
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200/50 dark:border-white/5 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 max-w-full leading-none">
+                          Reviewed: <span className="text-slate-700 dark:text-slate-300 font-extrabold truncate max-w-[140px] ml-0.5">{review.productName}</span>
                         </div>
                       )}
-                      <div>
-                        <h4 className="text-xs font-extrabold text-slate-800 dark:text-slate-200">{review.name}</h4>
-                        <span className="text-[9px] uppercase font-bold tracking-wider text-slate-400">{review.location}</span>
+                    </div>
+                    
+                    <div className="mt-6 pt-4 border-t border-slate-100 dark:border-white/5 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <div className="h-8 w-8 rounded-full bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-450 flex items-center justify-center text-xs font-bold uppercase">
+                            {review.name.charAt(0)}
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-extrabold text-slate-800 dark:text-slate-200">{review.name}</h4>
+                            <span className="text-[9px] uppercase font-bold tracking-wider text-slate-400">{review.location}</span>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-400">{review.date}</span>
                       </div>
                     </div>
-                    <span className="text-[10px] font-bold text-slate-400">{review.date}</span>
                   </div>
+                ))}
+              </div>
+            </div>
 
-                  {/* Product Tag if available */}
-                  {review.productName && (
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200/50 dark:border-white/5 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 leading-none">
-                      <ShoppingBag size={10} />
-                      Reviewed: <span className="text-slate-700 dark:text-slate-300 font-extrabold max-w-[150px] truncate ml-0.5">{review.productName}</span>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            ))}
           </div>
-        </div>
+        )}
 
       </div>
     </section>

@@ -228,7 +228,7 @@ const AdminAddProductPage = () => {
       }
 
       showToast('Product added successfully!', 'success');
-      window.location.href = '/admin/products';
+      navigate('/admin/products');
     } catch (err) {
       console.error('Error inserting product:', err);
       showToast(err.message || 'Error creating product', 'error');

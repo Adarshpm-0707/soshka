@@ -253,7 +253,7 @@ const AdminEditProductPage = () => {
       await adminLogService.logAction('updated_product', 'products', id, { name });
 
       showToast('Product updated successfully!', 'success');
-      window.location.href = '/admin/products';
+      navigate('/admin/products');
     } catch (err) {
       console.error('Error updating product:', err);
       showToast(err.message || 'Error updating product', 'error');

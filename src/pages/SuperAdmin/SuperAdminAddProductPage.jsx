@@ -230,7 +230,7 @@ const SuperAdminAddProductPage = () => {
       }
 
       showToast('Product added successfully!', 'success');
-      window.location.href = '/superadmin/products';
+      navigate('/superadmin/products');
     } catch (err) {
       console.error('Error inserting product:', err);
       showToast(err.message || 'Error creating product', 'error');

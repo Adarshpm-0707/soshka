@@ -4,7 +4,6 @@ import { productService } from '../../services/productService';
 import { useCart } from '../../hooks/useCart';
 import { useWishlist } from '../../hooks/useWishlist';
 import ImageGallery from './ImageGallery';
-import ReviewSection from './ReviewSection';
 import ProductCard from '../../components/Reusable/ProductCard';
 import SectionTitle from '../../components/Reusable/SectionTitle';
 import Loader from '../../components/Reusable/Loader';
@@ -408,12 +407,6 @@ const ProductDetailPage = () => {
           </div>
         </div>
       </div>
-
-      {/* Reviews Section */}
-      <ReviewSection
-        productId={product.id}
-        onReviewSubmitted={fetchProductDetails}
-      />
 
       {/* Related Products list showcase */}
       {relatedProducts.length > 0 && (

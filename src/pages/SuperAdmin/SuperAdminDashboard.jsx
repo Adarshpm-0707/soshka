@@ -9,6 +9,7 @@ import { superadminService } from '../../services/superadminService';
 import { adminLogService } from '../../services/adminLogService';
 import { useSuperAdmin } from '../../hooks/useSuperAdmin';
 import { useAuth } from '../../hooks/useAuth';
+import AdminReviewsPage from '../Admin/AdminReviewsPage';
 
 import {
   Crown,
@@ -63,6 +64,7 @@ const SuperAdminDashboard = () => {
   else if (location.pathname.startsWith('/superadmin/payments')) activeTab = 'payments';
   else if (location.pathname.startsWith('/superadmin/logs')) activeTab = 'logs';
   else if (location.pathname.startsWith('/superadmin/pandl')) activeTab = 'pandl';
+  else if (location.pathname.startsWith('/superadmin/reviews')) activeTab = 'reviews';
 
   const setTab = (tabName) => {
     if (tabName === 'overview') navigate('/superadmin/dashboard');
@@ -2091,6 +2093,11 @@ const SuperAdminDashboard = () => {
           </div>
         );
       })()}
+
+      {/* VIEW: STORE REVIEWS */}
+      {activeTab === 'reviews' && (
+        <AdminReviewsPage />
+      )}
 
     </div>
   );

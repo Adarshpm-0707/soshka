@@ -11,7 +11,9 @@ import {
   LogOut,
   Users,
   Menu,
-  X
+  X,
+  Star,
+  RefreshCw
 } from 'lucide-react';
 
 const AdminLayout = () => {
@@ -47,6 +49,7 @@ const AdminLayout = () => {
     { label: 'Offers', path: '/admin/offers', icon: BadgePercent },
     { label: 'Orders', path: '/admin/orders', icon: Package },
     { label: 'Customers', path: '/admin/customers', icon: Users },
+    { label: 'Store Reviews', path: '/admin/reviews', icon: Star },
   ];
 
   return (
@@ -58,12 +61,21 @@ const AdminLayout = () => {
           <ShoppingBag className="text-[#ff2a85] h-6 w-6" />
           <span className="text-base font-bold tracking-wide">Soshka Admin</span>
         </div>
-        <button
-          onClick={() => setIsMobileMenuOpen(true)}
-          className="p-1 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"
-        >
-          <Menu size={24} />
-        </button>
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => window.location.reload()}
+            className="p-1 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"
+            title="Refresh Panel"
+          >
+            <RefreshCw size={18} />
+          </button>
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="p-1 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"
+          >
+            <Menu size={24} />
+          </button>
+        </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden relative">
@@ -106,7 +118,7 @@ const AdminLayout = () => {
                       isActive 
                         ? 'bg-red-50/50 dark:bg-red-950/20 text-[#ff2a85] font-bold border border-red-500/10' 
                         : 'text-slate-600 dark:text-slate-355 hover:bg-slate-100 dark:hover:bg-slate-800'
-                    }`}
+                     }`}
                   >
                     <Icon size={18} className={isActive ? 'text-[#ff2a85]' : 'text-slate-400'} />
                     <span>{item.label}</span>
@@ -115,6 +127,14 @@ const AdminLayout = () => {
               })}
 
               <div className="h-[1px] bg-slate-200 dark:bg-slate-800 my-4" />
+
+              <button
+                onClick={() => window.location.reload()}
+                className="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition duration-200 w-full text-left"
+              >
+                <RefreshCw size={18} className="text-slate-400" />
+                <span>Refresh Panel</span>
+              </button>
 
               <Link 
                 to="/" 

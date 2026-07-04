@@ -256,7 +256,7 @@ const SuperAdminEditProductPage = () => {
       await adminLogService.logAction('updated_product', 'products', id, { name, actor: 'superadmin' });
 
       showToast('Product updated successfully!', 'success');
-      window.location.href = '/superadmin/products';
+      navigate('/superadmin/products');
     } catch (err) {
       console.error('Error updating product:', err);
       showToast(err.message || 'Error updating product', 'error');
