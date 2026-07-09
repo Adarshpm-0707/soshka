@@ -4,6 +4,7 @@ import { adminLogService } from '../../services/adminLogService';
 import { Search, Loader2, Package, Calendar, User, CreditCard, ChevronRight, X, AlertCircle, Trash2 } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { showToast } from '../../components/Reusable/Toast';
+import ConfirmModal from '../../components/Reusable/ConfirmModal';
 
 const SuperAdminOrdersPage = () => {
   const [orders, setOrders] = useState([]);
@@ -15,6 +16,15 @@ const SuperAdminOrdersPage = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [deletingOrder, setDeletingOrder] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState(null);
+
+  const [activeTab, setActiveTab] = useState('active'); // 'active' or 'cancelled'
+  const [timeTick, setTimeTick] = useState(Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => setTimeTick(Date.now()), 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -52,6 +62,31 @@ const SuperAdminOrdersPage = () => {
 
       showToast(`Order status updated to ${newStatus}`, 'success');
       
+      // Auto-send cancellation email when order is cancelled
+      if (newStatus === 'cancelled') {
+        try {
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+          const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+          const res = await fetch(`${supabaseUrl}/functions/v1/send-order-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseKey}`,
+            },
+            body: JSON.stringify({ order_id: orderId, email_type: 'cancellation' })
+          });
+          const data = await res.json();
+          if (res.ok && data.success) {
+            showToast(`Cancellation email sent to ${data.sent_to} ✉️`, 'success');
+          } else {
+            console.warn('Cancellation email failed:', data.error);
+            showToast('Status updated but cancellation email failed', 'warning');
+          }
+        } catch (emailErr) {
+          console.warn('Cancellation email error:', emailErr);
+        }
+      }
+
       // Update selected order modal detail state inline
       setSelectedOrder(prev => (prev ? { ...prev, status: newStatus } : null));
       await fetchOrders();
@@ -63,11 +98,8 @@ const SuperAdminOrdersPage = () => {
     }
   };
 
-  const handleDeleteOrder = async (orderId) => {
-    if (!window.confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
-      return;
-    }
 
+  const handleDeleteOrder = async (orderId) => {
     setDeletingOrder(true);
     try {
       const { error } = await supabase
@@ -91,10 +123,11 @@ const SuperAdminOrdersPage = () => {
       showToast(err.message || 'Failed to delete order', 'error');
     } finally {
       setDeletingOrder(false);
+      setOrderToDelete(null);
     }
   };
 
-  // Filter orders by search query (email, name, or order id) and status filter
+  // Filter orders by search query, tab (Active/Cancelled), and status filter
   const filteredOrders = orders.filter((order) => {
     const userEmail = order.profile?.email || '';
     const userName = order.profile?.name || '';
@@ -104,14 +137,32 @@ const SuperAdminOrdersPage = () => {
       userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       orderId.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+    // 'active' tab = All Orders (including cancelled); 'cancelled' tab = cancelled/failed only
+    const matchesTab = activeTab === 'cancelled'
+      ? (order.status === 'cancelled' || order.status === 'failed')
+      : true;
 
-    return matchesSearch && matchesStatus;
+    let matchesStatus = false;
+    if (statusFilter === 'all') {
+      matchesStatus = true;
+    } else if (statusFilter === 'refund_pending') {
+      matchesStatus = order.refund_status === 'processing';
+    } else if (statusFilter === 'refund_completed') {
+      matchesStatus = order.refund_status === 'completed';
+    } else if (statusFilter === 'refund_failed') {
+      matchesStatus = order.refund_status === 'failed';
+    } else {
+      matchesStatus = (order.order_status || order.status) === statusFilter;
+    }
+
+    return matchesSearch && matchesTab && matchesStatus;
   });
 
   const getStatusBadgeClass = (status) => {
     const classes = {
       pending: 'bg-amber-950/20 text-amber-400 border-amber-900',
+      paid: 'bg-teal-950/20 text-teal-400 border-teal-900',
+      confirmed: 'bg-sky-950/20 text-sky-400 border-sky-900',
       processing: 'bg-blue-950/20 text-blue-400 border-blue-900',
       shipped: 'bg-indigo-950/20 text-indigo-400 border-indigo-900',
       delivered: 'bg-emerald-950/20 text-emerald-400 border-emerald-900',
@@ -128,6 +179,30 @@ const SuperAdminOrdersPage = () => {
         <p className="text-slate-450 text-xs mt-1 font-semibold">
           Monitoring center: review global transactions, customer details, and dispatch progress.
         </p>
+      </div>
+
+      {/* Active vs Cancelled Tabs */}
+      <div className="flex border-b border-[#1c1c1e] mb-6">
+        <button
+          onClick={() => { setActiveTab('active'); setStatusFilter('all'); }}
+          className={`pb-3 px-6 text-xs font-black uppercase tracking-wider border-b-2 transition ${
+            activeTab === 'active'
+              ? 'border-[#ff2a85] text-[#ff2a85]'
+              : 'border-transparent text-slate-500 hover:text-slate-350'
+          }`}
+        >
+          All Orders
+        </button>
+        <button
+          onClick={() => { setActiveTab('cancelled'); setStatusFilter('all'); }}
+          className={`pb-3 px-6 text-xs font-black uppercase tracking-wider border-b-2 transition ${
+            activeTab === 'cancelled'
+              ? 'border-[#ff2a85] text-[#ff2a85]'
+              : 'border-transparent text-slate-500 hover:text-slate-350'
+          }`}
+        >
+          Cancelled Orders
+        </button>
       </div>
 
       {/* Search and Filters */}
@@ -148,14 +223,33 @@ const SuperAdminOrdersPage = () => {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 border rounded-xl text-xs font-semibold bg-slate-950 border-[#1c1c1e] outline-none"
+            className="px-3 py-2 border rounded-xl text-xs font-semibold bg-slate-950 border-[#1c1c1e] outline-none text-white"
           >
-            <option value="all">All Orders</option>
-            <option value="pending">Pending</option>
-            <option value="processing">Processing</option>
-            <option value="shipped">Shipped</option>
-            <option value="delivered">Delivered</option>
-            <option value="cancelled">Cancelled</option>
+            {activeTab === 'active' ? (
+              <>
+                <option value="all">All Orders</option>
+                <option value="pending">Pending</option>
+                <option value="paid">Paid</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="processing">Processing</option>
+                <option value="shipped">Shipped</option>
+                <option value="delivered">Delivered</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="failed">Failed</option>
+                <option value="refund_pending">Refund Pending</option>
+                <option value="refund_completed">Refund Completed</option>
+                <option value="refund_failed">Refund Failed</option>
+              </>
+            ) : (
+              <>
+                <option value="all">All Cancelled</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="failed">Failed</option>
+                <option value="refund_pending">Refund Pending</option>
+                <option value="refund_completed">Refund Completed</option>
+                <option value="refund_failed">Refund Failed</option>
+              </>
+            )}
           </select>
         </div>
       </div>
@@ -192,8 +286,21 @@ const SuperAdminOrdersPage = () => {
                     onClick={() => setSelectedOrder(order)}
                     className="hover:bg-white/[0.01] transition-colors cursor-pointer"
                   >
-                    <td className="py-4 px-6 font-mono text-xs text-slate-400 truncate max-w-[120px]" title={order.id}>
-                      {order.id}
+                    <td className="py-4 px-6 font-mono text-xs text-slate-400 truncate max-w-[200px]" title={order.id}>
+                      <div className="flex items-center">
+                        <span>{order.id.startsWith('00000000-0000-0000-0000-') ? order.id.split('-').pop() : order.id.slice(0, 8).toUpperCase()}</span>
+                        {(() => {
+                          const orderTime = new Date(order.created_at).getTime();
+                          const diffMins = (Date.now() - orderTime) / (1000 * 60);
+                          const remainingMins = Math.max(0, Math.floor(60 - diffMins));
+                          const isNew = remainingMins > 0 && order.status !== 'cancelled' && order.status !== 'failed';
+                          return isNew ? (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-lg text-[9px] font-black bg-[#ff2a85] text-white dark:bg-[#ff2a85]/20 dark:text-pink-400 border border-[#ff2a85]/20 animate-pulse ml-2 shrink-0">
+                              ⚡ NEW ({remainingMins}m left)
+                            </span>
+                          ) : null;
+                        })()}
+                      </div>
                     </td>
                     <td className="py-4 px-6">
                       <span className="text-slate-105 font-bold block">{order.profile?.name || 'Anonymous'}</span>
@@ -219,7 +326,14 @@ const SuperAdminOrdersPage = () => {
                       </span>
                     </td>
                     <td className="py-4 px-6">
-                      <span className="font-extrabold text-slate-100">{formatCurrency(order.total)}</span>
+                      <span className="font-extrabold text-slate-100 block">{formatCurrency(order.total)}</span>
+                      <span className={`inline-block text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border mt-1 ${
+                        order.payment_method === 'cod'
+                          ? 'bg-emerald-950/20 text-emerald-400 border-emerald-900'
+                          : 'bg-indigo-950/20 text-indigo-400 border-indigo-900'
+                      }`}>
+                        {order.payment_method === 'cod' ? 'COD' : 'Prepaid'}
+                      </span>
                     </td>
                     <td className="py-4 px-6">
                       <span className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded-full border ${getStatusBadgeClass(order.status)}`}>
@@ -257,7 +371,7 @@ const SuperAdminOrdersPage = () => {
                 <span className="text-xs uppercase font-extrabold tracking-widest text-slate-400">Order Specifications</span>
               </div>
               <h3 className="text-lg font-black font-mono select-all text-white truncate max-w-[90%]">
-                ID: {selectedOrder.id}
+                ID: {selectedOrder.id.startsWith('00000000-0000-0000-0000-') ? selectedOrder.id.split('-').pop() : selectedOrder.id.slice(0, 8).toUpperCase()}
               </h3>
             </div>
 
@@ -312,6 +426,8 @@ const SuperAdminOrdersPage = () => {
                       className="w-full px-3 py-2 border rounded-xl text-xs font-semibold bg-slate-900 border-[#26262a] focus:outline-none text-slate-350"
                     >
                       <option value="pending">Pending</option>
+                      <option value="paid">Paid</option>
+                      <option value="confirmed">Confirmed</option>
                       <option value="processing">Processing</option>
                       <option value="shipped">Shipped</option>
                       <option value="delivered">Delivered</option>
@@ -324,17 +440,75 @@ const SuperAdminOrdersPage = () => {
                   <span className="text-[10px] uppercase font-extrabold text-slate-500 tracking-wider flex items-center">
                     <CreditCard size={12} className="mr-1" /> Payment Specifications
                   </span>
-                  <div className="text-xs font-semibold text-slate-450 space-y-1">
+                  <div className="text-xs font-semibold text-slate-450 space-y-2">
                     <div className="flex justify-between">
-                      <span>Gateway Code:</span>
-                      <span className="font-mono text-white select-all">{selectedOrder.payment_id || 'Cash on Delivery / None'}</span>
+                      <span>Payment Method:</span>
+                      <span className="font-bold text-white uppercase">{selectedOrder.payment_method || 'Prepaid'}</span>
                     </div>
+                    {selectedOrder.payment_method === 'cod' ? (
+                      <>
+                        <div className="flex justify-between">
+                          <span>Items Subtotal:</span>
+                          <span className="text-white">{formatCurrency(selectedOrder.subtotal || (selectedOrder.total - 60))}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>COD Fee:</span>
+                          <span className="text-white">{formatCurrency(selectedOrder.cod_fee || 60)}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex justify-between">
+                        <span>Gateway Code:</span>
+                        <span className="font-mono text-white select-all">{selectedOrder.payment_id || 'None'}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between border-t border-[#1c1c1e] pt-2 text-sm font-extrabold text-white">
                       <span>Grand Total:</span>
                       <span className="text-[#ff2a85] font-black">{formatCurrency(selectedOrder.total)}</span>
                     </div>
                   </div>
                 </div>
+
+                {/* Refund Details */}
+                {selectedOrder.refund_status && selectedOrder.refund_status !== 'none' && (
+                  <div className="space-y-2 pt-2 border-t border-[#1c1c1e]">
+                    <span className="text-[10px] uppercase font-extrabold text-slate-550 tracking-wider flex items-center flex-wrap gap-1">
+                      💸 Refund Details
+                    </span>
+                    <div className="text-xs font-semibold text-slate-450 space-y-1">
+                      <div className="flex justify-between">
+                        <span>Refund Status:</span>
+                        <span className={`font-bold uppercase ${
+                          selectedOrder.refund_status === 'completed' ? 'text-emerald-450' :
+                          selectedOrder.refund_status === 'failed' ? 'text-red-450' :
+                          'text-amber-400'
+                        }`}>{selectedOrder.refund_status}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Refund ID:</span>
+                        <span className="font-mono text-white select-all">{selectedOrder.refund_id || 'N/A'}</span>
+                      </div>
+                      {selectedOrder.refund_amount && (
+                        <div className="flex justify-between">
+                          <span>Refund Amount:</span>
+                          <span className="text-white font-extrabold">{formatCurrency(selectedOrder.refund_amount)}</span>
+                        </div>
+                      )}
+                      {selectedOrder.cancelled_at && (
+                        <div className="flex justify-between">
+                          <span>Cancelled At:</span>
+                          <span className="text-white">{new Date(selectedOrder.cancelled_at).toLocaleString()}</span>
+                        </div>
+                      )}
+                      {selectedOrder.cancellation_reason && (
+                        <div className="flex flex-col pt-1">
+                          <span className="text-[10px] text-slate-500 font-semibold">Reason:</span>
+                          <span className="text-slate-350 italic mt-0.5">{selectedOrder.cancellation_reason}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-2 pt-2 border-t border-[#1c1c1e]">
                   <span className="text-[10px] uppercase font-extrabold text-slate-550 tracking-wider flex items-center">
@@ -396,22 +570,24 @@ const SuperAdminOrdersPage = () => {
                       onClick={async () => {
                         try {
                           showToast('Resending invoice email...', 'info');
-                          const res = await fetch('/api/send-order-confirmation', {
+                          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+                          const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+                          const res = await fetch(`${supabaseUrl}/functions/v1/send-order-email`, {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              order: selectedOrder,
-                              email: selectedOrder.shipping_address?.email || selectedOrder.profile?.email
-                            })
+                            headers: {
+                              'Content-Type': 'application/json',
+                              'Authorization': `Bearer ${supabaseKey}`,
+                            },
+                            body: JSON.stringify({ order_id: selectedOrder.id })
                           });
                           const data = await res.json();
                           if (res.ok && data.success) {
-                            showToast('Invoice email sent successfully!', 'success');
+                            showToast(`Invoice email sent to ${data.sent_to} ✉️`, 'success');
                           } else {
                             throw new Error(data.error || 'Failed to send email');
                           }
                         } catch (err) {
-                          showToast(err.message, 'error');
+                          showToast(err.message || 'Email send failed', 'error');
                         }
                       }}
                       className="w-full flex items-center justify-center space-x-2 py-2 px-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-extrabold transition-all"
@@ -423,7 +599,7 @@ const SuperAdminOrdersPage = () => {
 
                 <div className="pt-3 border-t border-[#1c1c1e]">
                   <button
-                    onClick={() => handleDeleteOrder(selectedOrder.id)}
+                    onClick={() => setOrderToDelete(selectedOrder.id)}
                     disabled={deletingOrder}
                     className="w-full flex items-center justify-center space-x-2 py-2.5 px-4 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-500 dark:text-red-400 rounded-xl text-xs font-extrabold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -474,6 +650,19 @@ const SuperAdminOrdersPage = () => {
           </div>
         </div>
       )}
+
+      {/* Premium Confirm Modal */}
+      <ConfirmModal
+        isOpen={!!orderToDelete}
+        onClose={() => setOrderToDelete(null)}
+        onConfirm={() => handleDeleteOrder(orderToDelete)}
+        title="Delete Order Record?"
+        message="Are you sure you want to permanently delete this order record? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Keep Order"
+        type="danger"
+        isLoading={deletingOrder}
+      />
     </div>
   );
 };

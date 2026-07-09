@@ -297,6 +297,24 @@ const TermsPage = () => {
           </p>
         </section>
 
+        <section id="editorial-policy" className="space-y-3 scroll-mt-20">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <span className="text-primary-600 dark:text-primary-400">17.</span> Editorial Policy &amp; Standards
+          </h3>
+          <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+            Soshka is committed to providing clear, accurate, and helpful information about jewellery styles, sizing guides, materials, and product care guidelines. Our design and curation team reviews all descriptions and blog posts to ensure compliance with quality standards. Soshka's editorial content is updated regularly, and all publication/modification dates are noted transparently.
+          </p>
+        </section>
+
+        <section id="disclaimers" className="space-y-3">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <span className="text-primary-600 dark:text-primary-400">18.</span> Shopping &amp; Product Disclaimers (YMYL)
+          </h3>
+          <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+            <strong>Important:</strong> All jewellery items sold on Soshka.in are intended as fashion accessories. Unless explicitly specified otherwise in writing, our products are not manufactured from solid precious gold, sterling silver, or precious gemstones. Sizing measurements, weights, and finishes may vary slightly. Please review care instructions carefully before purchase. Skin chemistry reactions (tarnishing caused by unique pH/perspiration acidity levels) are not considered manufacturing defects and are not covered under warranty.
+          </p>
+        </section>
+
         <hr className="border-slate-200 dark:border-slate-850" />
 
         <p className="text-xs font-bold text-slate-500 dark:text-slate-400 text-center">

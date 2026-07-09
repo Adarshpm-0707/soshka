@@ -4,6 +4,7 @@ import { Plus, Trash2, Edit2, Check, X, AlertTriangle, Loader2 } from 'lucide-re
 import Input from '../../components/Reusable/Input';
 import Button from '../../components/Reusable/Button';
 import { showToast } from '../../components/Reusable/Toast';
+import { adminLogService } from '../../services/adminLogService';
 
 const AdminCategoriesPage = () => {
   const [categories, setCategories] = useState([]);
@@ -56,11 +57,15 @@ const AdminCategoriesPage = () => {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)+/g, '');
 
-      const { error } = await supabase
+      const { data: newCat, error } = await supabase
         .from('categories')
-        .insert({ name: newCatName.trim(), slug });
+        .insert({ name: newCatName.trim(), slug })
+        .select()
+        .single();
       
       if (error) throw error;
+
+      await adminLogService.logAction('created_category', 'categories', newCat?.id, { name: newCatName.trim(), slug });
 
       showToast('Category created successfully!', 'success');
       setNewCatName('');
@@ -88,12 +93,16 @@ const AdminCategoriesPage = () => {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)+/g, '');
 
-      const { error } = await supabase
+      const { data: updatedCat, error } = await supabase
         .from('categories')
         .update({ name: editingName.trim(), slug })
-        .eq('id', id);
+        .eq('id', id)
+        .select()
+        .single();
 
       if (error) throw error;
+
+      await adminLogService.logAction('updated_category', 'categories', id, { name: editingName.trim(), slug });
 
       showToast('Category updated successfully!', 'success');
       setEditingId(null);
@@ -135,6 +144,8 @@ const AdminCategoriesPage = () => {
         .eq('id', deleteCat.id);
       
       if (error) throw error;
+
+      await adminLogService.logAction('deleted_category', 'categories', deleteCat.id, { name: deleteCat.name, slug: deleteCat.slug });
 
       showToast('Category deleted successfully', 'success');
       setDeleteCat(null);

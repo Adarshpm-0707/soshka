@@ -50,13 +50,13 @@ const ReviewsPage = () => {
   const socialReviews = reviews.filter(r => r.image_url);
   
   const combinedWrittenReviews = reviews
-    .filter(r => r.comment)
+    .filter(r => !r.image_url)
     .map(r => ({
       id: r.id,
-      name: r.name,
-      location: r.location || 'Verified Buyer',
+      name: r.name || null,
+      location: r.location || null,
       rating: r.rating,
-      comment: r.comment,
+      comment: r.comment || null,
       created_at: r.created_at
     }))
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -204,11 +204,13 @@ const ReviewsPage = () => {
                               className="w-full h-full object-cover"
                             />
                           </div>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 italic text-center mt-4 px-2 leading-relaxed font-medium">
-                            "{review.comment}"
-                          </p>
+                          {review.comment && (
+                            <p className="text-xs text-slate-500 dark:text-slate-400 italic text-center mt-4 px-2 leading-relaxed font-medium">
+                              "{review.comment}"
+                            </p>
+                          )}
                           <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mt-2">
-                            — {review.name} {review.location ? `(${review.location})` : ''}
+                            — {review.name || 'Anonymous'} {review.location ? `(${review.location})` : ''}
                           </p>
                         </div>
                       );
@@ -250,15 +252,21 @@ const ReviewsPage = () => {
                               <Star key={i} size={12} fill="currentColor" />
                             ))}
                           </div>
-                          <p className="text-sm text-slate-650 dark:text-slate-300 leading-relaxed font-medium">
-                            "{review.comment}"
-                          </p>
+                          {review.comment && (
+                            <p className="text-sm text-slate-650 dark:text-slate-300 leading-relaxed font-medium">
+                              "{review.comment}"
+                            </p>
+                          )}
                         </div>
                         
                         <div className="mt-6 pt-4 border-t border-slate-100 dark:border-white/5 flex justify-between items-center">
                           <div>
-                            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">{review.name}</h4>
-                            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">{review.location}</span>
+                            {review.name && (
+                              <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">{review.name}</h4>
+                            )}
+                            {review.location && (
+                              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">{review.location}</span>
+                            )}
                           </div>
                           <span className="text-[10px] font-bold text-slate-400">{getRelativeTime(review.created_at)}</span>
                         </div>

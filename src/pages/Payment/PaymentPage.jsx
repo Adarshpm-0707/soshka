@@ -3,12 +3,15 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useCart } from '../../hooks/useCart';
 import { orderService } from '../../services/orderService';
-import { SHIPPING_CHARGES, FREE_SHIPPING_THRESHOLD, TAX_RATE } from '../../utils/constants';
+import { initiateRazorpayPayment, initiateCODPayment } from '../../services/checkoutService';
+import { SHIPPING_CHARGES, FREE_SHIPPING_THRESHOLD } from '../../utils/constants';
 import Loader from '../../components/Reusable/Loader';
 import { showToast } from '../../components/Reusable/Toast';
-import SectionTitle from '../../components/Reusable/SectionTitle';
 import Button from '../../components/Reusable/Button';
-import { ArrowLeft, CreditCard, ShieldCheck, Truck, Check, Lock, ChevronDown, Sparkles } from 'lucide-react';
+import {
+  ArrowLeft, CreditCard, ShieldCheck, Truck, Check,
+  Lock, ChevronDown, Sparkles, RefreshCw
+} from 'lucide-react';
 import { formatCurrency } from '../../utils/formatCurrency';
 
 const PaymentPage = () => {
@@ -18,230 +21,107 @@ const PaymentPage = () => {
   const { cartItems, cartTotal, clearCart } = useCart();
 
   const [loading, setLoading] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('razorpay'); // 'razorpay' or 'cod'
+  const [paymentMethod, setPaymentMethod] = useState('razorpay');
   const [showBreakdown, setShowBreakdown] = useState(false);
+  // For retry: store pending db_order_id if user dismissed modal
+  const [pendingOrderId, setPendingOrderId] = useState(null);
 
-  // Safely extract shipping address from route state
   const shippingAddress = location.state?.shippingAddress;
 
-  // Compute billing summary
-  const shippingCost = cartTotal > 0 && cartTotal < FREE_SHIPPING_THRESHOLD ? SHIPPING_CHARGES : 0;
-  const taxCost = cartTotal * TAX_RATE;
-  const grandTotal = cartTotal + shippingCost + taxCost;
+  // Display-only cost calculation (actual totals computed server-side for Razorpay/COD)
+  const shippingCost = 0;
+  const codFee = paymentMethod === 'cod' ? 60 : 0;
+  const grandTotal = cartTotal + codFee;
 
-  // Read Razorpay key from frontend bundle environment
-  const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
-
-  // Load Razorpay script helper
-  const loadRazorpayScript = () => {
-    return new Promise((resolve) => {
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
-  };
-
-  // Create Order in DB & clear cart helper
-  const handleOrderCreation = async (paymentId) => {
-    try {
-      const orderItems = cartItems.map(item => ({
-        product_id: item.product_id,
-        name: item.product.name,
-        price: item.product.discount_price || item.product.price,
-        quantity: item.quantity,
-        image: item.product.images?.[0],
-        size: item.size || ''
-      }));
-
-      // Create Order
-      const newOrder = await orderService.createOrder({
-        userId: user.id,
-        items: orderItems,
-        total: grandTotal,
-        shippingAddress,
-        paymentId
-      });
-
-      // Dispatch order details and request courier pickup from Shiprocket
-      try {
-        console.log('Dispatching order to Shiprocket...');
-        const shiprocketRes = await fetch('/api/shiprocket-pickup', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            order: newOrder,
-            email: shippingAddress?.email || user?.email
-          })
-        });
-
-        if (!shiprocketRes.ok) {
-          const errData = await shiprocketRes.json();
-          console.warn('Shiprocket integration returned an error:', errData.error);
-        } else {
-          const shipData = await shiprocketRes.json();
-          console.log('Shiprocket order pushed successfully:', shipData);
-        }
-      } catch (shipErr) {
-        console.error('Failed to dispatch order to Shiprocket:', shipErr);
-      }
-
-      // Dispatch order confirmation email
-      try {
-        console.log('Dispatching order confirmation email...');
-        const emailConfirmRes = await fetch('/api/send-order-confirmation', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            order: newOrder,
-            email: shippingAddress?.email || user?.email
-          })
-        });
-
-        if (!emailConfirmRes.ok) {
-          const errData = await emailConfirmRes.json();
-          console.warn('Email confirmation integration returned an error:', errData.error);
-        } else {
-          console.log('Order confirmation email sent successfully!');
-        }
-      } catch (emailErr) {
-        console.error('Failed to dispatch order confirmation email:', emailErr);
-      }
-
-      // Clear DB/Local Cart
-      await clearCart();
-      
-      showToast('Order placed successfully!', 'success');
-      
-      // Redirect to Order Detail view
-      navigate(`/orders/${newOrder.id}`);
-    } catch (err) {
-      console.error('Error creating order:', err);
-      showToast('Error recording purchase. Please contact support.', 'error');
-    }
-  };
-
-  // Checkout with Razorpay
+  // ─── Razorpay Payment (via Edge Functions) ────────────────────────────────
   const handleRazorpayPayment = async () => {
-    if (!razorpayKey) {
-      showToast('Razorpay configuration is missing on the client side.', 'error');
-      return;
-    }
-
     setLoading(true);
+    setPendingOrderId(null);
 
     try {
-      const isLoaded = await loadRazorpayScript();
-      if (!isLoaded) {
-        throw new Error('Razorpay SDK failed to load. Are you connected to the internet?');
-      }
+      const { success, db_order_id } = await initiateRazorpayPayment(
+        cartItems,
+        shippingAddress,
+        { name: shippingAddress?.name, email: shippingAddress?.email, phone: shippingAddress?.phone }
+      );
 
-      // 1. Create order on the backend
-      const amountPaise = Math.round(grandTotal * 100);
-      const receiptId = `receipt_${user?.id?.slice(0, 8) || 'user'}_${Date.now()}`;
-      
-      let order_id = null;
-      const createOrderRes = await fetch('/api/create-order', {
+      if (success) {
+        await handlePostPaymentSuccess(db_order_id);
+      }
+    } catch (err) {
+      setLoading(false);
+
+      if (err.cancelled) {
+        // User dismissed the Razorpay modal — order stays 'pending'
+        setPendingOrderId(err.db_order_id || null);
+        showToast('Payment window closed. You can retry below.', 'info');
+      } else if (err.paymentFailed) {
+        // Razorpay payment.failed event fired
+        showToast(err.error || 'Payment was declined. Please try a different method.', 'error');
+      } else {
+        console.error('Payment error:', err);
+        showToast(err.message || 'Payment failed. Please try again.', 'error');
+      }
+    }
+  };
+
+  // ─── Post-payment success actions ────────────────────────────────────────
+  const handlePostPaymentSuccess = async (dbOrderId) => {
+    try {
+      // Note: email is already fired server-side from create-cod-order / verify-razorpay-payment.
+      // This is a frontend safety-net call in case the server-side trigger missed.
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      fetch(`${supabaseUrl}/functions/v1/send-order-email`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseKey}`,
         },
-        body: JSON.stringify({
-          amount: amountPaise,
-          currency: 'INR',
-          receipt: receiptId,
-        }),
-      });
-
-      if (!createOrderRes.ok) {
-        const errText = await createOrderRes.text();
-        throw new Error(`Failed to initialize payment gateway: ${errText}`);
-      }
-
-      const orderData = await createOrderRes.json();
-      order_id = orderData.order_id;
-
-      // 2. Configure checkout options
-      const options = {
-        key: razorpayKey,
-        amount: amountPaise,
-        currency: 'INR',
-        name: 'Soshka Store',
-        description: 'Secure Order Payment',
-        order_id: order_id,
-        image: '',
-        handler: async function (response) {
-          try {
-            // 3. Verify signature on the backend
-            const verifyRes = await fetch('/api/verify-payment', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                order_id: response.razorpay_order_id,
-                payment_id: response.razorpay_payment_id,
-                signature: response.razorpay_signature,
-              }),
-            });
-
-            if (!verifyRes.ok) {
-              const verifyError = await verifyRes.json();
-              throw new Error(verifyError.error || 'Payment signature verification failed.');
-            }
-
-            // 4. Record order details in database on successful validation
-            await handleOrderCreation(response.razorpay_payment_id);
-          } catch (err) {
-            setLoading(false);
-            console.error('Payment verification error:', err);
-            showToast(err.message || 'Payment verification failed.', 'error');
-          }
-        },
-        prefill: {
-          name: shippingAddress.name,
-          contact: shippingAddress.phone,
-          email: shippingAddress.email || user?.email || ''
-        },
-        theme: {
-          color: '#8b5cf6'
-        },
-        modal: {
-          ondismiss: function () {
-            setLoading(false);
-            showToast('Payment window closed.', 'info');
-          }
+        body: JSON.stringify({ order_id: dbOrderId }),
+      }).then(async (r) => {
+        if (r.ok) {
+          const d = await r.json();
+          console.log('[Email] Confirmation sent to', d.sent_to);
+        } else {
+          console.warn('[Email] Edge fn returned', r.status);
         }
-      };
+      }).catch((e) => console.warn('[Email] Non-blocking send failed:', e));
 
-      const rzp = new window.Razorpay(options);
-      rzp.on('payment.failed', function (response) {
-        console.error('Payment failed:', response.error);
-        showToast(response.error.description || 'Payment process failed.', 'error');
-        setLoading(false);
-      });
-
-      rzp.open();
+      // Clear cart and navigate to order detail
+      await clearCart();
+      showToast('Order placed successfully! 🎉', 'success');
+      navigate(`/orders/${dbOrderId}`);
     } catch (err) {
       setLoading(false);
-      console.error('Razorpay initialization error:', err);
-      showToast(err.message || 'Error initializing payment gateway.', 'error');
+      console.error('Post-payment error:', err);
+      showToast('Order confirmed but failed to load details. Check your orders page.', 'warning');
+      navigate('/orders');
     }
   };
 
-  // Place Cash on Delivery order
+
+  // ─── COD Order ───────────────────────────────────────────────────────────
   const handleCODPayment = async () => {
     setLoading(true);
-    const codPaymentId = `cod_${Math.random().toString(36).substr(2, 9)}`;
-    await handleOrderCreation(codPaymentId);
+    try {
+      const { success, db_order_id } = await initiateCODPayment(
+        cartItems,
+        shippingAddress
+      );
+
+      if (success) {
+        await handlePostPaymentSuccess(db_order_id);
+      }
+    } catch (err) {
+      setLoading(false);
+      console.error('COD error:', err);
+      showToast(err.message || 'Failed to place COD order.', 'error');
+    }
   };
 
   const handleCheckoutSubmit = () => {
+    setPendingOrderId(null);
     if (paymentMethod === 'razorpay') {
       handleRazorpayPayment();
     } else {
@@ -249,16 +129,13 @@ const PaymentPage = () => {
     }
   };
 
-  // Safety check: if no shipping address or empty cart, redirect back
+  // Safety redirect
   useEffect(() => {
     if (!shippingAddress) {
-      showToast('Shipping address is required to place order.', 'error');
+      showToast('Shipping address is required.', 'error');
       navigate('/checkout');
-      return;
-    }
-    if (cartItems.length === 0) {
+    } else if (cartItems.length === 0) {
       navigate('/cart');
-      return;
     }
   }, [shippingAddress, cartItems, navigate]);
 
@@ -269,8 +146,8 @@ const PaymentPage = () => {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-905 transition-colors duration-300 py-12 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-3xl">
-        
-        {/* Step Progress Bar */}
+
+        {/* Step Progress */}
         <div className="flex items-center justify-between max-w-md mx-auto mb-10 text-xs font-bold uppercase tracking-wider text-slate-400">
           <div className="flex items-center space-x-2 text-slate-500">
             <span className="h-6 w-6 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-[10px]">1</span>
@@ -297,10 +174,10 @@ const PaymentPage = () => {
           <span>Back to Shipping Address</span>
         </button>
 
-        {/* Main Interface Wrapper */}
+        {/* Main Card */}
         <div className="bg-white/80 dark:bg-slate-850/80 backdrop-blur-md rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-xl shadow-slate-100/40 dark:shadow-none overflow-hidden">
-          
-          {/* Header Gradient Accent */}
+
+          {/* Header */}
           <div className="bg-gradient-to-r from-primary-600 to-pink-600 p-8 text-white relative">
             <div className="absolute top-0 right-0 p-4 opacity-10">
               <Sparkles size={120} />
@@ -310,7 +187,8 @@ const PaymentPage = () => {
           </div>
 
           <div className="p-8 space-y-6">
-            {/* Elegant Order Overview Block */}
+
+            {/* Order Overview */}
             <div className="bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 p-6 rounded-2xl space-y-4">
               <div className="flex justify-between items-center">
                 <div className="space-y-0.5">
@@ -326,27 +204,28 @@ const PaymentPage = () => {
                 </button>
               </div>
 
-              {/* Collapsible Pricing Breakdown */}
               {showBreakdown && (
                 <div className="border-t border-slate-200/60 dark:border-slate-800 pt-4 space-y-2 text-xs font-bold text-slate-500">
                   <div className="flex justify-between">
                     <span>Items Subtotal:</span>
                     <span className="text-slate-800 dark:text-slate-200">{formatCurrency(cartTotal)}</span>
                   </div>
+                  {paymentMethod === 'cod' && (
+                    <div className="flex justify-between">
+                      <span>COD Fee:</span>
+                      <span className="text-slate-800 dark:text-slate-200">{formatCurrency(60)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span>Shipping Charges:</span>
                     <span className="text-slate-800 dark:text-slate-200">
                       {shippingCost === 0 ? 'FREE' : formatCurrency(shippingCost)}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Tax (GST 18%):</span>
-                    <span className="text-slate-800 dark:text-slate-200">{formatCurrency(taxCost)}</span>
-                  </div>
                 </div>
               )}
 
-              {/* Shipping Destination Summary */}
+              {/* Delivery Address Summary */}
               <div className="border-t border-slate-200/60 dark:border-slate-800 pt-4 text-xs text-slate-450 space-y-1">
                 <span className="font-black uppercase tracking-widest text-[9px] text-slate-400 block">Deliver to</span>
                 <p className="font-extrabold text-slate-800 dark:text-slate-200">{shippingAddress?.name} — {shippingAddress?.phone}</p>
@@ -355,12 +234,29 @@ const PaymentPage = () => {
               </div>
             </div>
 
-            {/* Custom Payment Option Selectors */}
+            {/* Retry banner (shown after modal dismissed) */}
+            {pendingOrderId && paymentMethod === 'razorpay' && (
+              <div className="flex items-center justify-between bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/50 rounded-2xl px-5 py-4">
+                <div>
+                  <p className="text-xs font-extrabold text-amber-800 dark:text-amber-300">Payment window closed</p>
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold mt-0.5">Your order is saved. Click Retry to complete payment.</p>
+                </div>
+                <button
+                  onClick={handleRazorpayPayment}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-black transition"
+                >
+                  <RefreshCw size={12} />
+                  Retry
+                </button>
+              </div>
+            )}
+
+            {/* Payment Method Selector */}
             <div className="space-y-3">
               <label className="text-xs font-black uppercase tracking-widest text-slate-400">Payment Options</label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                
-                {/* Razorpay Options Card */}
+
+                {/* Razorpay */}
                 <div
                   onClick={() => setPaymentMethod('razorpay')}
                   className={`p-6 rounded-2xl border-2 transition-all cursor-pointer relative flex flex-col justify-between group select-none ${
@@ -386,7 +282,7 @@ const PaymentPage = () => {
                   </div>
                 </div>
 
-                {/* COD Options Card */}
+                {/* COD */}
                 <div
                   onClick={() => setPaymentMethod('cod')}
                   className={`p-6 rounded-2xl border-2 transition-all cursor-pointer relative flex flex-col justify-between group select-none ${
@@ -397,8 +293,8 @@ const PaymentPage = () => {
                 >
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
-                      <span className="text-sm font-black text-slate-855 dark:text-slate-100 block group-hover:text-emerald-500 transition">Cash on Delivery</span>
-                      <span className="text-xs text-slate-450 block font-semibold">Pay with cash at your door</span>
+                      <span className="text-sm font-black text-slate-855 dark:text-slate-100 block group-hover:text-emerald-500 transition">Cash on Delivery (+ ₹60)</span>
+                      <span className="text-xs text-slate-450 block font-semibold">Pay with cash at your door (+ ₹60 Handling Fee)</span>
                     </div>
                     <div className={`h-5.5 w-5.5 rounded-full border-2 flex items-center justify-center transition-all ${
                       paymentMethod === 'cod' ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-300 dark:border-slate-700'
@@ -415,10 +311,11 @@ const PaymentPage = () => {
               </div>
             </div>
 
-            {/* Glowing Action Button */}
+            {/* Submit Button */}
             <div className="pt-4">
               <button
                 onClick={handleCheckoutSubmit}
+                id="payment-submit-btn"
                 className={`w-full flex items-center justify-center space-x-2 py-4 px-6 rounded-2xl text-white text-sm font-black uppercase tracking-wider shadow-lg transition-all duration-300 hover:scale-[1.01] active:scale-[0.99] ${
                   paymentMethod === 'razorpay'
                     ? 'bg-gradient-to-r from-primary-600 to-violet-600 hover:from-primary-700 hover:to-violet-700 shadow-primary-500/20'
@@ -432,7 +329,7 @@ const PaymentPage = () => {
               </button>
             </div>
 
-            {/* Verified Footer badges */}
+            {/* Trust badges */}
             <div className="flex items-center justify-center space-x-2 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pt-4 border-t border-slate-100 dark:border-slate-800">
               <ShieldCheck className="text-emerald-500 h-4.5 w-4.5" />
               <span>SSL Secured Transaction Pipeline • Powered by Razorpay</span>

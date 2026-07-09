@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useRef } from 'react';
 import { authService } from '../services/authService';
 
 export const AuthContext = createContext(null);
@@ -8,6 +8,12 @@ export const AuthProvider = ({ children }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Keep a ref to the current user state to avoid stale closures in the useEffect subscription callback
+  const currentUserRef = useRef(null);
+  useEffect(() => {
+    currentUserRef.current = user;
+  }, [user]);
 
   const clearError = () => setError(null);
 
@@ -76,7 +82,13 @@ export const AuthProvider = ({ children }) => {
 
     // Listen for auth state changes
     const subscription = authService.onAuthStateChange(async (event, session) => {
-      setLoading(true);
+      // Only set loading to true for initial sign-in events when we don't have a user loaded
+      // to avoid background token refreshes (e.g., on window/tab focus) from triggering a full reload.
+      const isInitialSignIn = (event === 'SIGNED_IN' && !currentUserRef.current);
+      if (isInitialSignIn) {
+        setLoading(true);
+      }
+      
       if (session?.user) {
         setUser(session.user);
         // For OAuth providers (Google, Apple), ensure profile row exists

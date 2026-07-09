@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { reviewService } from '../../services/reviewService';
 import { validateContactForm } from '../../utils/validations';
+import { supabase } from '../../lib/supabaseClient';
 import SectionTitle from '../../components/Reusable/SectionTitle';
 import Input from '../../components/Reusable/Input';
 import Button from '../../components/Reusable/Button';
@@ -15,6 +16,27 @@ const ContactPage = () => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [generalError, setGeneralError] = useState('');
+
+  // Load form state from sessionStorage on mount
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('contact_form');
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data.name) setName(data.name);
+        if (data.email) setEmail(data.email);
+        if (data.message) setMessage(data.message);
+      }
+    } catch (e) {
+      console.error('Error loading saved contact form:', e);
+    }
+  }, []);
+
+  // Save form state to sessionStorage on change
+  useEffect(() => {
+    const data = { name, email, message };
+    sessionStorage.setItem('contact_form', JSON.stringify(data));
+  }, [name, email, message]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,24 +59,17 @@ const ContactPage = () => {
         message: message.trim()
       });
 
-      // 2. Dispatch email notification via Vercel serverless function
+      // 2. Dispatch email notification via Supabase Edge Function
       try {
-        const response = await fetch('/api/contact', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
+        const { error: funcError } = await supabase.functions.invoke('send-contact-email', {
+          body: {
             name: name.trim(),
             email: email.trim(),
             message: message.trim()
-          })
+          }
         });
 
-        if (!response.ok) {
-          const errData = await response.json();
-          throw new Error(errData.error || 'SMTP failed');
-        }
+        if (funcError) throw funcError;
 
         showToast('Message sent successfully!', 'success');
       } catch (emailErr) {
@@ -63,6 +78,7 @@ const ContactPage = () => {
         showToast('Message saved, but email notification failed to deliver.', 'info');
       }
 
+      sessionStorage.removeItem('contact_form');
       setName('');
       setEmail('');
       setMessage('');

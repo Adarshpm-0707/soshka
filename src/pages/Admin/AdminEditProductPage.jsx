@@ -250,7 +250,16 @@ const AdminEditProductPage = () => {
       if (error) throw error;
 
       // Log update in admin_logs
-      await adminLogService.logAction('updated_product', 'products', id, { name });
+      await adminLogService.logAction('updated_product', 'products', id, {
+        name,
+        brand,
+        sku,
+        price: originalPrice,
+        offer_price: offerPrice,
+        stock,
+        sizes,
+        category_id: categoryId
+      });
 
       showToast('Product updated successfully!', 'success');
       navigate('/admin/products');

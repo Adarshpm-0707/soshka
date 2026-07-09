@@ -4,6 +4,8 @@ import { Plus, Trash2, Edit2, ShieldAlert, Loader2, Calendar, Gift, Check, X } f
 import Input from '../../components/Reusable/Input';
 import Button from '../../components/Reusable/Button';
 import { showToast } from '../../components/Reusable/Toast';
+import { adminLogService } from '../../services/adminLogService';
+import ConfirmModal from '../../components/Reusable/ConfirmModal';
 
 const AdminOffersPage = () => {
   const [offers, setOffers] = useState([]);
@@ -13,6 +15,8 @@ const AdminOffersPage = () => {
   const [editingOffer, setEditingOffer] = useState(null); // null for add, offer object for edit
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [deleteOfferId, setDeleteOfferId] = useState(null);
+  const [deletingOffer, setDeletingOffer] = useState(false);
 
   // Form Fields
   const [title, setTitle] = useState('');
@@ -141,6 +145,14 @@ const AdminOffersPage = () => {
         .eq('id', offer.id);
       
       if (error) throw error;
+
+      await adminLogService.logAction(
+        !offer.is_active ? 'activated_offer' : 'deactivated_offer',
+        'offers',
+        offer.id,
+        { title: offer.title, discount_percent: offer.discount_percent }
+      );
+
       showToast(`Campaign ${!offer.is_active ? 'Activated' : 'Deactivated'}`, 'success');
       await fetchOffers();
     } catch (err) {
@@ -150,18 +162,28 @@ const AdminOffersPage = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this offer? Linked products will have their campaign links removed.')) return;
+    setDeletingOffer(true);
     try {
+      const offer = offers.find(o => o.id === id);
       const { error } = await supabase
         .from('offers')
         .delete()
         .eq('id', id);
       if (error) throw error;
+
+      await adminLogService.logAction('deleted_offer', 'offers', id, {
+        title: offer?.title,
+        discount_percent: offer?.discount_percent
+      });
+
       showToast('Offer campaign deleted', 'success');
       await fetchOffers();
     } catch (err) {
       console.error('Error deleting offer:', err);
       showToast('Failed to delete campaign', 'error');
+    } finally {
+      setDeletingOffer(false);
+      setDeleteOfferId(null);
     }
   };
 
@@ -193,13 +215,27 @@ const AdminOffersPage = () => {
           .update(payload)
           .eq('id', editingOffer.id);
         if (error) throw error;
+
+        await adminLogService.logAction('updated_offer', 'offers', editingOffer.id, {
+          title,
+          discount_percent: payload.discount_percent
+        });
+
         showToast('Campaign updated successfully!', 'success');
       } else {
         // Create
-        const { error } = await supabase
+        const { data: newOffer, error } = await supabase
           .from('offers')
-          .insert(payload);
+          .insert(payload)
+          .select()
+          .single();
         if (error) throw error;
+
+        await adminLogService.logAction('created_offer', 'offers', newOffer?.id, {
+          title,
+          discount_percent: payload.discount_percent
+        });
+
         showToast('Campaign created successfully!', 'success');
       }
 
@@ -494,7 +530,7 @@ const AdminOffersPage = () => {
                     Edit
                   </button>
                   <button
-                    onClick={() => handleDelete(off.id)}
+                    onClick={() => setDeleteOfferId(off.id)}
                     className="p-2 rounded-xl text-slate-450 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all text-xs font-bold inline-flex items-center"
                   >
                     <Trash2 size={14} className="mr-1.5" />
@@ -506,6 +542,19 @@ const AdminOffersPage = () => {
           })}
         </div>
       )}
+
+      {/* Premium Confirm Modal */}
+      <ConfirmModal
+        isOpen={!!deleteOfferId}
+        onClose={() => setDeleteOfferId(null)}
+        onConfirm={() => handleDelete(deleteOfferId)}
+        title="Delete Offer Campaign?"
+        message="Are you sure you want to delete this offer? Linked products will have their campaign links removed."
+        confirmLabel="Delete"
+        cancelLabel="Keep Campaign"
+        type="danger"
+        isLoading={deletingOffer}
+      />
     </div>
   );
 };

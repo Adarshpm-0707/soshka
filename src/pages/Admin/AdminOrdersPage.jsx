@@ -14,7 +14,14 @@ const AdminOrdersPage = () => {
   // Order Detail Modal states
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
-  const [deletingOrder, setDeletingOrder] = useState(false);
+
+  const [activeTab, setActiveTab] = useState('active'); // 'active' or 'cancelled'
+  const [timeTick, setTimeTick] = useState(Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => setTimeTick(Date.now()), 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -51,6 +58,31 @@ const AdminOrdersPage = () => {
       await adminLogService.logAction('updated_order_status', 'orders', orderId, { status: newStatus });
 
       showToast(`Order status updated to ${newStatus}`, 'success');
+
+      // Auto-send cancellation email when order is cancelled
+      if (newStatus === 'cancelled') {
+        try {
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+          const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+          const res = await fetch(`${supabaseUrl}/functions/v1/send-order-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseKey}`,
+            },
+            body: JSON.stringify({ order_id: orderId, email_type: 'cancellation' })
+          });
+          const data = await res.json();
+          if (res.ok && data.success) {
+            showToast(`Cancellation email sent to ${data.sent_to} ✉️`, 'success');
+          } else {
+            console.warn('Cancellation email failed:', data.error);
+            showToast('Status updated but cancellation email failed', 'warning');
+          }
+        } catch (emailErr) {
+          console.warn('Cancellation email error:', emailErr);
+        }
+      }
       
       // Update selected order modal detail state inline
       setSelectedOrder(prev => (prev ? { ...prev, status: newStatus } : null));
@@ -63,38 +95,10 @@ const AdminOrdersPage = () => {
     }
   };
 
-  const handleDeleteOrder = async (orderId) => {
-    if (!window.confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
-      return;
-    }
 
-    setDeletingOrder(true);
-    try {
-      const { error } = await supabase
-        .from('orders')
-        .delete()
-        .eq('id', orderId);
 
-      if (error) throw error;
 
-      // Log the action in admin_logs
-      await adminLogService.logAction('deleted_order', 'orders', orderId, {
-        total: selectedOrder?.total,
-        customer: selectedOrder?.profile?.email || 'N/A'
-      });
-
-      showToast('Order deleted successfully', 'success');
-      setSelectedOrder(null);
-      await fetchOrders();
-    } catch (err) {
-      console.error('Error deleting order:', err);
-      showToast(err.message || 'Failed to delete order', 'error');
-    } finally {
-      setDeletingOrder(false);
-    }
-  };
-
-  // Filter orders by search query (email or order id) and status filter
+  // Filter orders by search query, tab (Active/Cancelled), and status filter
   const filteredOrders = orders.filter((order) => {
     const userEmail = order.profile?.email || '';
     const userName = order.profile?.name || '';
@@ -104,9 +108,25 @@ const AdminOrdersPage = () => {
       userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       orderId.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+    // 'active' tab = All Orders (including cancelled); 'cancelled' tab = cancelled/failed only
+    const matchesTab = activeTab === 'cancelled'
+      ? (order.status === 'cancelled' || order.status === 'failed')
+      : true;
 
-    return matchesSearch && matchesStatus;
+    let matchesStatus = false;
+    if (statusFilter === 'all') {
+      matchesStatus = true;
+    } else if (statusFilter === 'refund_pending') {
+      matchesStatus = order.refund_status === 'processing';
+    } else if (statusFilter === 'refund_completed') {
+      matchesStatus = order.refund_status === 'completed';
+    } else if (statusFilter === 'refund_failed') {
+      matchesStatus = order.refund_status === 'failed';
+    } else {
+      matchesStatus = (order.order_status || order.status) === statusFilter;
+    }
+
+    return matchesSearch && matchesTab && matchesStatus;
   });
 
   const getStatusBadgeClass = (status) => {
@@ -125,9 +145,33 @@ const AdminOrdersPage = () => {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-extrabold tracking-tight">Orders Registry</h1>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
+        <p className="text-slate-550 dark:text-slate-450 text-sm mt-1">
           Monitor transactions, check buyer details, and update shipping progress.
         </p>
+      </div>
+
+      {/* Active vs Cancelled Tabs */}
+      <div className="flex border-b border-slate-200 dark:border-slate-800/80">
+        <button
+          onClick={() => { setActiveTab('active'); setStatusFilter('all'); }}
+          className={`pb-3 px-6 text-xs font-black uppercase tracking-wider border-b-2 transition ${
+            activeTab === 'active'
+              ? 'border-primary-600 text-primary-600 dark:border-[#ff2a85] dark:text-[#ff2a85]'
+              : 'border-transparent text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+          }`}
+        >
+          All Orders
+        </button>
+        <button
+          onClick={() => { setActiveTab('cancelled'); setStatusFilter('all'); }}
+          className={`pb-3 px-6 text-xs font-black uppercase tracking-wider border-b-2 transition ${
+            activeTab === 'cancelled'
+              ? 'border-primary-600 text-primary-600 dark:border-[#ff2a85] dark:text-[#ff2a85]'
+              : 'border-transparent text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+          }`}
+        >
+          Cancelled Orders
+        </button>
       </div>
 
       {/* Search and Filters */}
@@ -150,12 +194,31 @@ const AdminOrdersPage = () => {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="px-3 py-2 border rounded-xl text-xs font-semibold bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-850 outline-none"
           >
-            <option value="all">All Orders</option>
-            <option value="pending">Pending</option>
-            <option value="processing">Processing</option>
-            <option value="shipped">Shipped</option>
-            <option value="delivered">Delivered</option>
-            <option value="cancelled">Cancelled</option>
+            {activeTab === 'active' ? (
+              <>
+                <option value="all">All Orders</option>
+                <option value="pending">Pending</option>
+                <option value="paid">Paid</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="processing">Processing</option>
+                <option value="shipped">Shipped</option>
+                <option value="delivered">Delivered</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="failed">Failed</option>
+                <option value="refund_pending">Refund Pending</option>
+                <option value="refund_completed">Refund Completed</option>
+                <option value="refund_failed">Refund Failed</option>
+              </>
+            ) : (
+              <>
+                <option value="all">All Cancelled</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="failed">Failed</option>
+                <option value="refund_pending">Refund Pending</option>
+                <option value="refund_completed">Refund Completed</option>
+                <option value="refund_failed">Refund Failed</option>
+              </>
+            )}
           </select>
         </div>
       </div>
@@ -192,8 +255,21 @@ const AdminOrdersPage = () => {
                     onClick={() => setSelectedOrder(order)}
                     className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors cursor-pointer"
                   >
-                    <td className="py-4 px-6 font-mono text-xs text-slate-500 truncate max-w-[120px]" title={order.id}>
-                      {order.id}
+                    <td className="py-4 px-6 font-mono text-xs text-slate-500 truncate max-w-[200px]" title={order.id}>
+                      <div className="flex items-center">
+                        <span>{order.id.startsWith('00000000-0000-0000-0000-') ? order.id.split('-').pop() : order.id.slice(0, 8).toUpperCase()}</span>
+                        {(() => {
+                          const orderTime = new Date(order.created_at).getTime();
+                          const diffMins = (Date.now() - orderTime) / (1000 * 60);
+                          const remainingMins = Math.max(0, Math.floor(60 - diffMins));
+                          const isNew = remainingMins > 0 && order.status !== 'cancelled' && order.status !== 'failed';
+                          return isNew ? (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-lg text-[9px] font-black bg-pink-600 text-white dark:bg-pink-600/20 dark:text-pink-400 border border-pink-500/20 animate-pulse ml-2 shrink-0">
+                              ⚡ NEW ({remainingMins}m left)
+                            </span>
+                          ) : null;
+                        })()}
+                      </div>
                     </td>
                     <td className="py-4 px-6">
                       <span className="text-slate-800 dark:text-slate-100 font-bold block">{order.profile?.name || 'Anonymous'}</span>
@@ -257,7 +333,7 @@ const AdminOrdersPage = () => {
                 <span className="text-xs uppercase font-extrabold tracking-widest">Order Specifications</span>
               </div>
               <h3 className="text-lg font-black font-mono select-all text-slate-905 dark:text-white truncate max-w-[90%]">
-                ID: {selectedOrder.id}
+                ID: {selectedOrder.id.startsWith('00000000-0000-0000-0000-') ? selectedOrder.id.split('-').pop() : selectedOrder.id.slice(0, 8).toUpperCase()}
               </h3>
             </div>
 
@@ -336,6 +412,47 @@ const AdminOrdersPage = () => {
                   </div>
                 </div>
 
+                {/* Refund Details */}
+                {selectedOrder.refund_status && selectedOrder.refund_status !== 'none' && (
+                  <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                    <span className="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider flex items-center flex-wrap gap-1">
+                      💸 Refund Details
+                    </span>
+                    <div className="text-xs font-semibold text-slate-500 space-y-1">
+                      <div className="flex justify-between">
+                        <span>Refund Status:</span>
+                        <span className={`font-bold uppercase ${
+                          selectedOrder.refund_status === 'completed' ? 'text-emerald-600' :
+                          selectedOrder.refund_status === 'failed' ? 'text-red-500' :
+                          'text-amber-600 dark:text-amber-400'
+                        }`}>{selectedOrder.refund_status}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Refund ID:</span>
+                        <span className="font-mono text-slate-850 dark:text-white select-all">{selectedOrder.refund_id || 'N/A'}</span>
+                      </div>
+                      {selectedOrder.refund_amount && (
+                        <div className="flex justify-between">
+                          <span>Refund Amount:</span>
+                          <span className="text-slate-850 dark:text-white font-extrabold">{formatCurrency(selectedOrder.refund_amount)}</span>
+                        </div>
+                      )}
+                      {selectedOrder.cancelled_at && (
+                        <div className="flex justify-between">
+                          <span>Cancelled At:</span>
+                          <span className="text-slate-850 dark:text-white">{new Date(selectedOrder.cancelled_at).toLocaleString()}</span>
+                        </div>
+                      )}
+                      {selectedOrder.cancellation_reason && (
+                        <div className="flex flex-col pt-1">
+                          <span className="text-[10px] text-slate-450">Reason:</span>
+                          <span className="text-slate-700 dark:text-slate-350 italic mt-0.5">{selectedOrder.cancellation_reason}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
                   <span className="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider flex items-center">
                     📦 Shiprocket Shipping
@@ -396,22 +513,24 @@ const AdminOrdersPage = () => {
                       onClick={async () => {
                         try {
                           showToast('Resending invoice email...', 'info');
-                          const res = await fetch('/api/send-order-confirmation', {
+                          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+                          const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+                          const res = await fetch(`${supabaseUrl}/functions/v1/send-order-email`, {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              order: selectedOrder,
-                              email: selectedOrder.shipping_address?.email || selectedOrder.profile?.email
-                            })
+                            headers: {
+                              'Content-Type': 'application/json',
+                              'Authorization': `Bearer ${supabaseKey}`,
+                            },
+                            body: JSON.stringify({ order_id: selectedOrder.id })
                           });
                           const data = await res.json();
                           if (res.ok && data.success) {
-                            showToast('Invoice email sent successfully!', 'success');
+                            showToast(`Invoice email sent to ${data.sent_to} ✉️`, 'success');
                           } else {
                             throw new Error(data.error || 'Failed to send email');
                           }
                         } catch (err) {
-                          showToast(err.message, 'error');
+                          showToast(err.message || 'Email send failed', 'error');
                         }
                       }}
                       className="w-full flex items-center justify-center space-x-2 py-2 px-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-extrabold transition-all"
@@ -421,20 +540,7 @@ const AdminOrdersPage = () => {
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-slate-205 dark:border-slate-800">
-                  <button
-                    onClick={() => handleDeleteOrder(selectedOrder.id)}
-                    disabled={deletingOrder}
-                    className="w-full flex items-center justify-center space-x-2 py-2.5 px-4 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-500 dark:text-red-400 rounded-xl text-xs font-extrabold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {deletingOrder ? (
-                      <Loader2 size={13} className="animate-spin" />
-                    ) : (
-                      <Trash2 size={13} />
-                    )}
-                    <span>Delete Order Record</span>
-                  </button>
-                </div>
+
               </div>
             </div>
 

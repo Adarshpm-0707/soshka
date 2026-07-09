@@ -10,9 +10,21 @@ const OrderSummary = ({ showCheckoutBtn = true }) => {
   const { cartTotal, cartItems } = useCart();
   const navigate = useNavigate();
 
-  const shippingCost = cartTotal > 0 && cartTotal < FREE_SHIPPING_THRESHOLD ? SHIPPING_CHARGES : 0;
-  const taxCost = cartTotal * TAX_RATE;
-  const grandTotal = cartTotal + shippingCost + taxCost;
+  const shippingCost = 0;
+  const taxCost = 0;
+  const grandTotal = cartTotal;
+
+  // Calculate total savings from active offers
+  const totalSavings = cartItems.reduce((acc, item) => {
+    const product = item.product;
+    if (!product) return acc;
+    const originalPrice = product.original_price ?? product.price ?? 0;
+    const offerPrice = product.offer_price;
+    const isOfferActive = !!(offerPrice && Number(offerPrice) > 0);
+    const unitPrice = isOfferActive ? offerPrice : originalPrice;
+    const savings = isOfferActive ? (originalPrice - unitPrice) * item.quantity : 0;
+    return acc + savings;
+  }, 0);
 
   const handleCheckoutRedirect = () => {
     if (cartItems.length === 0) {
@@ -33,6 +45,12 @@ const OrderSummary = ({ showCheckoutBtn = true }) => {
           <span>Subtotal</span>
           <span className="text-slate-800 dark:text-white">{formatCurrency(cartTotal)}</span>
         </div>
+        {totalSavings > 0 && (
+          <div className="flex justify-between text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/10 dark:border-emerald-500/20 px-3 py-2 rounded-xl text-xs font-black">
+            <span>You Save</span>
+            <span>-{formatCurrency(totalSavings)}</span>
+          </div>
+        )}
         {shippingCost > 0 && (
           <div className="flex justify-between text-slate-500 dark:text-slate-400">
             <span>Shipping</span>

@@ -117,6 +117,51 @@ const AdminAddProductPage = () => {
   const [images, setImages] = useState(['', '', '']);
   const [uploadingIndex, setUploadingIndex] = useState(null);
 
+  // Load form state from sessionStorage on mount
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('admin_add_product_form');
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data.name) setName(data.name);
+        if (data.description) setDescription(data.description);
+        if (data.specifications) setSpecifications(data.specifications);
+        if (data.shippingPolicy) setShippingPolicy(data.shippingPolicy);
+        if (data.category) setCategory(data.category);
+        if (data.categoryId) setCategoryId(data.categoryId);
+        if (data.originalPrice) setOriginalPrice(data.originalPrice);
+        if (data.offerPrice) setOfferPrice(data.offerPrice);
+        if (data.stock) setStock(data.stock);
+        if (data.offerId) setOfferId(data.offerId);
+        if (data.discountPercent) setDiscountPercent(data.discountPercent);
+        if (data.sizes) setSizes(data.sizes);
+        if (data.images) setImages(data.images);
+      }
+    } catch (e) {
+      console.error('Error loading saved form:', e);
+    }
+  }, []);
+
+  // Save form state to sessionStorage on change
+  useEffect(() => {
+    const data = {
+      name,
+      description,
+      specifications,
+      shippingPolicy,
+      category,
+      categoryId,
+      originalPrice,
+      offerPrice,
+      stock,
+      offerId,
+      discountPercent,
+      sizes,
+      images
+    };
+    sessionStorage.setItem('admin_add_product_form', JSON.stringify(data));
+  }, [name, description, specifications, shippingPolicy, category, categoryId, originalPrice, offerPrice, stock, offerId, discountPercent, sizes, images]);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -224,9 +269,19 @@ const AdminAddProductPage = () => {
       if (error) throw error;
 
       if (data) {
-        await adminLogService.logAction('created_product', 'products', data.id, { name });
+        await adminLogService.logAction('created_product', 'products', data.id, {
+          name,
+          brand,
+          sku,
+          price: originalPrice,
+          offer_price: offerPrice,
+          stock,
+          sizes,
+          category_id: categoryId
+        });
       }
 
+      sessionStorage.removeItem('admin_add_product_form');
       showToast('Product added successfully!', 'success');
       navigate('/admin/products');
     } catch (err) {

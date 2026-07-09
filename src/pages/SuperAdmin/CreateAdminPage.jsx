@@ -15,6 +15,28 @@ const CreateAdminPage = () => {
   const [showPass, setShowPass] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
+  // Load form state from sessionStorage on mount
+  React.useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('create_admin_form');
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data.name) setName(data.name);
+        if (data.email) setEmail(data.email);
+        if (data.password) setPassword(data.password);
+        if (data.role) setRole(data.role);
+      }
+    } catch (e) {
+      console.error('Error loading saved form:', e);
+    }
+  }, []);
+
+  // Save form state to sessionStorage on change
+  React.useEffect(() => {
+    const data = { name, email, password, role };
+    sessionStorage.setItem('create_admin_form', JSON.stringify(data));
+  }, [name, email, password, role]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitError('');
@@ -35,6 +57,7 @@ const CreateAdminPage = () => {
         name: name.trim(),
         role
       });
+      sessionStorage.removeItem('create_admin_form');
       navigate('/superadmin/admins');
     } catch (err) {
       console.error('Failed to create admin account:', err);

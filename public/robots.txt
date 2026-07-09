@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+Sitemap: https://soshka.in/sitemap.xml
+Sitemap: https://soshka.in/llms.txt

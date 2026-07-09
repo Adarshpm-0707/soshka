@@ -65,14 +65,17 @@ const ProductCard = ({ product }) => {
     >
       {/* ── Product Image ── */}
       <Link
-        to={`/products/${product.id}`}
+        to={`/products/${product.slug || product.id}`}
         className="block relative w-full overflow-hidden bg-slate-100 dark:bg-slate-800"
         style={{ paddingBottom: '100%' /* 1:1 aspect ratio */ }}
       >
         <img
           src={product.images?.[0] || ''}
-          alt={product.name}
+          alt={`${product.name} - Anti-Tarnish Premium Jewellery`}
+          width="400"
+          height="400"
           loading="lazy"
+          decoding="async"
           className="absolute inset-0 w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out"
         />
 
@@ -80,8 +83,9 @@ const ProductCard = ({ product }) => {
         <button
           onClick={handleWishlistClick}
           className="absolute top-3 right-3 p-2 rounded-full bg-white/70 dark:bg-black/50 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-sm hover:scale-110 hover:bg-[#ff2a85] hover:text-white transition-all duration-300 pointer-events-auto group/fav"
-          aria-label="Wishlist"
+          aria-label={isFavorite ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`}
         >
+          <span className="sr-only">{isFavorite ? 'Remove from wishlist' : 'Add to wishlist'}</span>
           <Heart
             size={14}
             fill={isFavorite ? '#ff2a85' : 'none'}
@@ -106,22 +110,13 @@ const ProductCard = ({ product }) => {
         </span>
 
         {/* Product Name */}
-        <Link to={`/products/${product.id}`} className="hover:text-[#98183f] transition-colors block h-[40px] sm:h-[44px] overflow-hidden">
+        <Link to={`/products/${product.slug || product.id}`} className="hover:text-[#98183f] transition-colors block h-[40px] sm:h-[44px] overflow-hidden">
           <h3 className="font-semibold text-slate-800 dark:text-slate-100 text-sm sm:text-[15px] leading-snug line-clamp-2">
             {product.name}
           </h3>
         </Link>
 
-        {/* Rating */}
-        <div className="flex items-center gap-1 mt-0.5">
-          <Star size={11} className="text-amber-400 shrink-0" fill="currentColor" />
-          <span className="text-xs font-bold text-slate-700 dark:text-slate-350">
-            {product.rating || '0.0'}
-          </span>
-          <span className="text-[10px] text-slate-400 dark:text-slate-550">
-            ({product.review_count || 0})
-          </span>
-        </div>
+
 
         {/* Price + Add to Cart — pushed to bottom */}
         <div className="mt-auto pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
@@ -162,6 +157,7 @@ const ProductCard = ({ product }) => {
               className="p-2 rounded-xl text-[#98183f] dark:text-[#ff2a85] bg-slate-100 dark:bg-slate-800 hover:bg-[#98183f]/10 dark:hover:bg-slate-700/60 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-400 transition-all duration-200"
               aria-label="Add to Cart"
             >
+              <span className="sr-only">Add to Cart</span>
               <ShoppingCart size={13} />
             </button>
 

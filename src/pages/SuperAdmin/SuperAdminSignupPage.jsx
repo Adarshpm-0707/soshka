@@ -37,9 +37,15 @@ const SuperAdminSignupPage = () => {
 
     setLoading(true);
     try {
+      let signupEmail = email.trim();
+      if (!signupEmail.includes('+superadmin')) {
+        const parts = signupEmail.split('@');
+        signupEmail = `${parts[0]}+superadmin@${parts[1]}`;
+      }
+
       // Step 1: Sign up via authService (which uses register_user_directly RPC)
       const data = await authService.signUp({
-        email: email.trim(),
+        email: signupEmail,
         password,
         name: name.trim(),
         role: 'superadmin'
@@ -54,7 +60,7 @@ const SuperAdminSignupPage = () => {
             {
               id: data.user.id,
               name: name.trim(),
-              email: email.trim(),
+              email: signupEmail,
               role: 'superadmin',
               is_active: true,
               updated_at: new Date().toISOString()

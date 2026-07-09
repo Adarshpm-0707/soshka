@@ -54,7 +54,7 @@ const CartItem = ({ item }) => {
 
       {/* Product Image + Info */}
       <div className="flex items-center space-x-4 min-w-0">
-        <Link to={`/products/${product.id}`} className="shrink-0">
+        <Link to={`/products/${product.slug || product.id}`} className="shrink-0">
           <img
             src={product.images?.[0] || ''}
             alt={product.name}
@@ -62,7 +62,7 @@ const CartItem = ({ item }) => {
           />
         </Link>
         <div className="min-w-0">
-          <Link to={`/products/${product.id}`}>
+          <Link to={`/products/${product.slug || product.id}`}>
             <h4 className="font-bold text-slate-800 dark:text-white line-clamp-1 text-sm md:text-base hover:text-[#98183f] dark:hover:text-[#ff2a85] transition-colors">
               {product.name}
             </h4>

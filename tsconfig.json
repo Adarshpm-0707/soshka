@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "jsx": "preserve",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "noEmit": true
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "supabase/functions"
+  ]
+}

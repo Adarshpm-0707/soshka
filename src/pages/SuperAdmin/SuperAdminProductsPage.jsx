@@ -43,8 +43,13 @@ const SuperAdminProductsPage = () => {
         .eq('id', id);
       if (error) throw error;
 
+      const deletedProduct = products.find(p => p.id === id);
       // Log the deletion action in admin_logs
-      await adminLogService.logAction('deleted_product', 'products', id, { id });
+      await adminLogService.logAction('deleted_product', 'products', id, {
+        id,
+        name: deletedProduct?.name,
+        sku: deletedProduct?.sku
+      });
 
       showToast('Product deleted successfully', 'success');
       setDeleteId(null);

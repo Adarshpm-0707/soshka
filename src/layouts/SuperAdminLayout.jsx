@@ -49,7 +49,6 @@ const SuperAdminLayout = () => {
     { label: 'Manage Customers', path: '/superadmin/customers', icon: Users },
     { label: 'Products', path: '/superadmin/products', icon: ShoppingBag },
     { label: 'Orders Registry', path: '/superadmin/orders', icon: Package },
-    { label: 'Payment Settings', path: '/superadmin/payments', icon: CreditCard },
     { label: 'Profit & Loss', path: '/superadmin/pandl', icon: DollarSign },
     { label: 'Store Reviews', path: '/superadmin/reviews', icon: Star },
     { label: 'Activity Logs', path: '/superadmin/logs', icon: Activity },
@@ -165,19 +164,16 @@ const SuperAdminLayout = () => {
               )}
               <div className="overflow-hidden">
                 <p className="text-sm font-semibold truncate">{profile?.name || 'Super Admin'}</p>
-                <p className="text-xs text-slate-500 truncate text-ellipsis">{user?.email}</p>
+                <p className="text-xs text-slate-500 truncate text-ellipsis">{user?.email?.replace(/\+(admin|superadmin)@/, '@')}</p>
               </div>
             </div>
-            <button 
-              onClick={async () => {
-                await logout();
-                navigate('/superadmin/login');
-              }}
+            <Link 
+              to="/superadmin/logout"
               className="flex items-center space-x-2 w-full text-left text-red-500 hover:bg-red-950/20 px-3 py-2.5 rounded-lg transition text-sm font-semibold"
             >
               <LogOut size={16} />
               <span>Sign Out</span>
-            </button>
+            </Link>
           </div>
         </aside>
 

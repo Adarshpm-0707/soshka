@@ -162,7 +162,7 @@ const ManageAdminsPage = () => {
                             <span className="text-slate-100 font-bold block leading-snug">
                               {admin.name || 'Staff User'} {isSelf && <span className="text-[10px] text-[#ff2a85] bg-pink-950/40 border border-pink-500/10 px-1.5 py-0.5 rounded-md font-extrabold ml-1.5">You</span>}
                             </span>
-                            <span className="text-[10px] text-slate-500 font-normal block">{admin.email}</span>
+                            <span className="text-[10px] text-slate-500 font-normal block">{admin.email?.replace(/\+(admin|superadmin)@/, '@')}</span>
                           </div>
                         </div>
                       </td>

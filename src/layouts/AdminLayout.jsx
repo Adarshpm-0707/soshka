@@ -162,19 +162,16 @@ const AdminLayout = () => {
               )}
               <div className="overflow-hidden">
                 <p className="text-sm font-semibold truncate">{profile?.name || 'Admin'}</p>
-                <p className="text-xs text-slate-400 truncate">{user?.email}</p>
+                <p className="text-xs text-slate-400 truncate">{user?.email?.replace(/\+(admin|superadmin)@/, '@')}</p>
               </div>
             </div>
-            <button 
-              onClick={async () => {
-                await logout();
-                navigate('/admin/login');
-              }}
+            <Link 
+              to="/admin/logout"
               className="flex items-center space-x-2 w-full text-left text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 px-3 py-2.5 rounded-lg transition text-sm font-semibold"
             >
               <LogOut size={16} />
               <span>Sign Out</span>
-            </button>
+            </Link>
           </div>
         </aside>
 

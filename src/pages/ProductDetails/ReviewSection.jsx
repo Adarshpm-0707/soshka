@@ -5,6 +5,7 @@ import { Star, ShieldAlert, ArrowLeft, ArrowRight, Trash2 } from 'lucide-react';
 import { showToast } from '../../components/Reusable/Toast';
 import Input from '../../components/Reusable/Input';
 import Button from '../../components/Reusable/Button';
+import ConfirmModal from '../../components/Reusable/ConfirmModal';
 
 const ReviewSection = ({ productId, onReviewSubmitted }) => {
   const { user, profile } = useAuth();
@@ -12,6 +13,7 @@ const ReviewSection = ({ productId, onReviewSubmitted }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [reviewToDelete, setReviewToDelete] = useState(null);
 
   // Pagination states
   const [page, setPage] = useState(1);
@@ -26,22 +28,21 @@ const ReviewSection = ({ productId, onReviewSubmitted }) => {
   const [submitError, setSubmitError] = useState('');
 
   const handleDelete = async (reviewId) => {
-    if (window.confirm("Are you sure you want to delete this review?")) {
-      setDeletingId(reviewId);
-      try {
-        await reviewService.deleteReview(reviewId, productId);
-        showToast('Review deleted successfully!', 'info');
-        // Refresh reviews list
-        await fetchReviews();
-        // Notify parent to refetch product rating & count
-        if (onReviewSubmitted) {
-          onReviewSubmitted();
-        }
-      } catch (err) {
-        showToast(err.message || 'Failed to delete review.', 'error');
-      } finally {
-        setDeletingId(null);
+    setDeletingId(reviewId);
+    try {
+      await reviewService.deleteReview(reviewId, productId);
+      showToast('Review deleted successfully!', 'info');
+      // Refresh reviews list
+      await fetchReviews();
+      // Notify parent to refetch product rating & count
+      if (onReviewSubmitted) {
+        onReviewSubmitted();
       }
+    } catch (err) {
+      showToast(err.message || 'Failed to delete review.', 'error');
+    } finally {
+      setDeletingId(null);
+      setReviewToDelete(null);
     }
   };
 
@@ -252,9 +253,9 @@ const ReviewSection = ({ productId, onReviewSubmitted }) => {
                             ))}
                           </div>
 
-                          {canDelete && (
+                           {canDelete && (
                             <button
-                              onClick={() => handleDelete(rev.id)}
+                              onClick={() => setReviewToDelete(rev.id)}
                               disabled={deletingId === rev.id}
                               className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition disabled:opacity-50"
                               title="Delete Review"
@@ -303,6 +304,19 @@ const ReviewSection = ({ productId, onReviewSubmitted }) => {
           )}
         </div>
       </div>
+
+      {/* Premium Confirm Modal */}
+      <ConfirmModal
+        isOpen={!!reviewToDelete}
+        onClose={() => setReviewToDelete(null)}
+        onConfirm={() => handleDelete(reviewToDelete)}
+        title="Delete Customer Review?"
+        message="Are you sure you want to permanently delete this product review? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Keep Review"
+        type="danger"
+        isLoading={deletingId === reviewToDelete && deletingId !== null}
+      />
     </div>
   );
 };

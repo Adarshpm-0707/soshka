@@ -96,12 +96,63 @@ export const reviewService = {
   async getAllReviews(limit = 10) {
     const { data, error } = await supabase
       .from('reviews')
-      .select('*, profile:profiles(name, avatar_url), product:products(name, image_url)')
+      .select('*, profile:profiles(name, avatar_url), product:products(name, images)')
       .order('created_at', { ascending: false })
       .limit(limit);
 
     if (error) throw error;
     return data;
+  },
+
+  /**
+   * Fetch all product reviews across the store.
+   */
+  async fetchAllProductReviews() {
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('*, profile:profiles(name, avatar_url), product:products(name, images)')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  /**
+   * Update a review and recalculate average rating & review count for the product.
+   */
+  async updateReview(reviewId, productId, { rating, comment }) {
+    const { data: reviewData, error: updateError } = await supabase
+      .from('reviews')
+      .update({ rating: Number(rating), comment })
+      .eq('id', reviewId)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    // Fetch all reviews for this product to recalculate
+    const { data: allReviews, error: fetchError } = await supabase
+      .from('reviews')
+      .select('rating')
+      .eq('product_id', productId);
+
+    if (!fetchError && allReviews) {
+      const reviewCount = allReviews.length;
+      const averageRating = parseFloat(
+        (allReviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount).toFixed(1)
+      );
+
+      // Update the product row
+      await supabase
+        .from('products')
+        .update({
+          rating: averageRating,
+          review_count: reviewCount
+        })
+        .eq('id', productId);
+    }
+
+    return reviewData;
   },
 
   /**

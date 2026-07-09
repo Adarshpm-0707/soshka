@@ -16,6 +16,6 @@ export const ORDER_STATUSES = {
   CANCELLED: 'cancelled'
 };
 
-export const SHIPPING_CHARGES = 99; // Flat shipping in INR
-export const FREE_SHIPPING_THRESHOLD = 999; // Free shipping threshold in INR
-export const TAX_RATE = 0.18; // 18% GST
+export const SHIPPING_CHARGES = 0; // Flat shipping in INR (disabled)
+export const FREE_SHIPPING_THRESHOLD = 0; // Free shipping threshold in INR (disabled)
+export const TAX_RATE = 0.00; // GST rate (disabled)

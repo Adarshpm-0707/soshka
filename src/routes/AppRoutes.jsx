@@ -16,7 +16,6 @@ import HomePage from "../pages/Home/HomePage";
 
 // Lazy load all other pages to minimize the initial JS bundle size
 const AdminLoginPage = lazy(() => import("../pages/Admin/AdminLoginPage"));
-const AdminSignupPage = lazy(() => import("../pages/Admin/AdminSignupPage"));
 const AdminDashboard = lazy(() => import("../pages/Admin/AdminDashboard"));
 const AdminProductsPage = lazy(() => import("../pages/Admin/AdminProductsPage"));
 const AdminAddProductPage = lazy(() => import("../pages/Admin/AdminAddProductPage"));
@@ -26,9 +25,9 @@ const AdminOffersPage = lazy(() => import("../pages/Admin/AdminOffersPage"));
 const AdminOrdersPage = lazy(() => import("../pages/Admin/AdminOrdersPage"));
 const AdminCustomersPage = lazy(() => import("../pages/Admin/ManageCustomersPage"));
 const AdminReviewsPage = lazy(() => import("../pages/Admin/AdminReviewsPage"));
+const AdminLogoutPage = lazy(() => import("../pages/Admin/AdminLogoutPage"));
 
 const SuperAdminLoginPage = lazy(() => import("../pages/SuperAdmin/SuperAdminLoginPage"));
-const SuperAdminSignupPage = lazy(() => import("../pages/SuperAdmin/SuperAdminSignupPage"));
 const SuperAdminDashboard = lazy(() => import("../pages/SuperAdmin/SuperAdminDashboard"));
 const ManageAdminsPage = lazy(() => import("../pages/SuperAdmin/ManageAdminsPage"));
 const CreateAdminPage = lazy(() => import("../pages/SuperAdmin/CreateAdminPage"));
@@ -38,6 +37,7 @@ const SuperAdminEditProductPage = lazy(() => import("../pages/SuperAdmin/SuperAd
 const SuperAdminOrdersPage = lazy(() => import("../pages/SuperAdmin/SuperAdminOrdersPage"));
 const PaymentSettingsPage = lazy(() => import("../pages/SuperAdmin/PaymentSettingsPage"));
 const ActivityLogsPage = lazy(() => import("../pages/SuperAdmin/ActivityLogsPage"));
+const SuperAdminLogoutPage = lazy(() => import("../pages/SuperAdmin/SuperAdminLogoutPage"));
 const SuperAdminCustomersPage = lazy(() => import("../pages/SuperAdmin/ManageCustomersPage"));
 
 const ProductsPage = lazy(() => import("../pages/Products/ProductsPage"));
@@ -56,6 +56,8 @@ const RegisterPage = lazy(() => import("../pages/Register/RegisterPage"));
 const ReviewsPage = lazy(() => import("../pages/Reviews/ReviewsPage"));
 const TermsPage = lazy(() => import("../pages/Terms/TermsPage"));
 const RefundPolicyPage = lazy(() => import("../pages/RefundPolicy/RefundPolicyPage"));
+const PrivacyPolicyPage = lazy(() => import("../pages/Terms/PrivacyPolicyPage"));
+const ShippingPolicyPage = lazy(() => import("../pages/Terms/ShippingPolicyPage"));
 
 const AppRoutes = () => {
   return (
@@ -67,12 +69,15 @@ const AppRoutes = () => {
           <Route path="/" element={<MainLayout />}>
             <Route index element={<HomePage />} />
             <Route path="products" element={<ProductsPage />} />
-            <Route path="products/:id" element={<ProductDetailPage />} />
+            <Route path="products/:idOrSlug" element={<ProductDetailPage />} />
             <Route path="cart" element={<CartPage />} />
             <Route path="about" element={<AboutPage />} />
             <Route path="contact" element={<ContactPage />} />
             <Route path="terms" element={<TermsPage />} />
             <Route path="returns-refunds" element={<RefundPolicyPage />} />
+            <Route path="refund-policy" element={<RefundPolicyPage />} />
+            <Route path="privacy-policy" element={<PrivacyPolicyPage />} />
+            <Route path="shipping-policy" element={<ShippingPolicyPage />} />
             <Route path="login" element={<LoginPage />} />
             <Route path="register" element={<RegisterPage />} />
             <Route path="reviews" element={<ReviewsPage />} />
@@ -128,9 +133,8 @@ const AppRoutes = () => {
             />
           </Route>
 
-          {/* Admin login & signup (outside layout/protection) */}
+          {/* Admin login (outside layout/protection) */}
           <Route path="/admin/login" element={<AdminLoginPage />} />
-          <Route path="/admin/signup" element={<AdminSignupPage />} />
 
           {/* Admin Routes inside AdminLayout */}
           <Route
@@ -151,11 +155,11 @@ const AppRoutes = () => {
             <Route path="orders" element={<AdminOrdersPage />} />
             <Route path="customers" element={<AdminCustomersPage />} />
             <Route path="reviews" element={<AdminReviewsPage />} />
+            <Route path="logout" element={<AdminLogoutPage />} />
           </Route>
 
-          {/* Super Admin login & signup */}
+          {/* Super Admin login */}
           <Route path="/superadmin/login" element={<SuperAdminLoginPage />} />
-          <Route path="/superadmin/signup" element={<SuperAdminSignupPage />} />
 
           {/* Super Admin Routes inside SuperAdminLayout */}
           <Route
@@ -173,12 +177,12 @@ const AppRoutes = () => {
             <Route path="products" element={<SuperAdminDashboard />} />
             <Route path="products/new" element={<SuperAdminAddProductPage />} />
             <Route path="products/:id" element={<SuperAdminEditProductPage />} />
-            <Route path="orders" element={<SuperAdminDashboard />} />
-            <Route path="payments" element={<SuperAdminDashboard />} />
+            <Route path="orders" element={<SuperAdminOrdersPage />} />
             <Route path="logs" element={<SuperAdminDashboard />} />
             <Route path="customers" element={<SuperAdminDashboard />} />
             <Route path="pandl" element={<SuperAdminDashboard />} />
             <Route path="reviews" element={<SuperAdminDashboard />} />
+            <Route path="logout" element={<SuperAdminLogoutPage />} />
           </Route>
 
           {/* 404 Route */}

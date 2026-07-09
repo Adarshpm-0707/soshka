@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
-import { ShoppingBag, ShoppingCart, Users, DollarSign, Loader2, TrendingUp, Package, AlertTriangle } from 'lucide-react';
+import { ShoppingBag, ShoppingCart, Users, DollarSign, Loader2, TrendingUp, Package, AlertTriangle, LogOut } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { showToast } from '../../components/Reusable/Toast';
+import { adminLogService } from '../../services/adminLogService';
+import ConfirmModal from '../../components/Reusable/ConfirmModal';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -15,6 +17,8 @@ const AdminDashboard = () => {
     ordersCount: 0,
     revenue: 0,
   });
+  const [deleteProductId, setDeleteProductId] = useState(null);
+  const [deletingProduct, setDeletingProduct] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -93,6 +97,14 @@ const AdminDashboard = () => {
       if (error) throw error;
       
       setProducts(prev => prev.map(p => p.id === id ? { ...p, stock: newQty } : p));
+
+      await adminLogService.logAction('updated_product_stock', 'products', id, {
+        name: item.name,
+        previous_stock: item.stock,
+        new_stock: newQty,
+        change: delta
+      });
+
       showToast('Quantity updated', 'success');
     } catch (err) {
       console.error('Error updating stock quantity:', err);
@@ -112,6 +124,14 @@ const AdminDashboard = () => {
       if (error) throw error;
       
       setProducts(prev => prev.map(p => p.id === id ? { ...p, stock: newQty } : p));
+
+      await adminLogService.logAction('updated_product_stock', 'products', id, {
+        name: item.name,
+        previous_stock: item.stock,
+        new_stock: newQty,
+        change: 10
+      });
+
       showToast('Added 10 units to stock', 'success');
     } catch (err) {
       console.error('Error adding stock:', err);
@@ -120,7 +140,8 @@ const AdminDashboard = () => {
   };
 
   const handleDeleteProduct = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this product?')) return;
+    setDeletingProduct(true);
+    const item = products.find(p => p.id === id);
     try {
       const { error } = await supabase
         .from('products')
@@ -129,10 +150,19 @@ const AdminDashboard = () => {
       if (error) throw error;
       
       setProducts(prev => prev.filter(p => p.id !== id));
+
+      await adminLogService.logAction('deleted_product', 'products', id, {
+        name: item?.name,
+        sku: item?.sku
+      });
+
       showToast('Product deleted successfully', 'info');
     } catch (err) {
       console.error('Error deleting product:', err);
       showToast(err.message || 'Error deleting product', 'error');
+    } finally {
+      setDeletingProduct(false);
+      setDeleteProductId(null);
     }
   };
 
@@ -298,6 +328,14 @@ const AdminDashboard = () => {
           >
             Alerts {alertsCount > 0 ? `(${alertsCount})` : ''}
           </button>
+          <div className="w-px h-4 bg-slate-350 dark:bg-slate-700 mx-1.5 self-center" />
+          <Link
+            to="/admin/logout"
+            className="px-3 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest text-red-650 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition duration-200 flex items-center gap-1.5"
+          >
+            <LogOut size={11} />
+            Logout
+          </Link>
         </div>
       </div>
 
@@ -577,7 +615,7 @@ const AdminDashboard = () => {
                           Edit
                         </button>
                         <button
-                          onClick={() => handleDeleteProduct(item.id)}
+                          onClick={() => setDeleteProductId(item.id)}
                           className="del-btn-crm text-xs"
                         >
                           ✕
@@ -617,7 +655,7 @@ const AdminDashboard = () => {
                   )}
                   <div className="flex-grow min-w-0">
                     <div className="font-bold text-sm text-slate-800 dark:text-slate-100">{item.name}</div>
-                    <div className="text-xs text-slate-400 mt-0.5">{item.slug} · {item.category}</div>
+                    <div className="text-xs text-slate-450 mt-0.5">{item.slug} · {item.category}</div>
                     <div className="flex space-x-2 mt-2">
                       <button
                         onClick={() => navigate(`/admin/products/${item.id}`)}
@@ -657,7 +695,7 @@ const AdminDashboard = () => {
                   )}
                   <div className="flex-grow min-w-0">
                     <div className="font-bold text-sm text-slate-800 dark:text-slate-100">{item.name}</div>
-                    <div className="text-xs text-slate-400 mt-0.5">{item.slug} · {item.category}</div>
+                    <div className="text-xs text-slate-450 mt-0.5">{item.slug} · {item.category}</div>
                     <button
                       onClick={() => handleAdd10Qty(item.id)}
                       className="add10-btn-crm font-bold text-xs mt-2"
@@ -684,6 +722,19 @@ const AdminDashboard = () => {
           )}
         </div>
       )}
+
+      {/* Premium Confirm Modal */}
+      <ConfirmModal
+        isOpen={!!deleteProductId}
+        onClose={() => setDeleteProductId(null)}
+        onConfirm={() => handleDeleteProduct(deleteProductId)}
+        title="Delete Product listing?"
+        message="Are you sure you want to delete this product listing? This action cannot be undone and will permanently remove this item from the store."
+        confirmLabel="Delete"
+        cancelLabel="Keep Product"
+        type="danger"
+        isLoading={deletingProduct}
+      />
     </div>
   );
 };

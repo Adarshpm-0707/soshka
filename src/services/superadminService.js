@@ -23,40 +23,43 @@ export const superadminService = {
     // Get current superadmin's ID
     const { data: { user: currentUser } } = await supabase.auth.getUser();
 
-    // Call Supabase Auth signUp
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          name,
-          role
-        }
-      }
+    let registrationEmail = email.trim();
+    if (role === 'admin' && !registrationEmail.includes('+admin')) {
+      const parts = registrationEmail.split('@');
+      registrationEmail = `${parts[0]}+admin@${parts[1]}`;
+    } else if (role === 'superadmin' && !registrationEmail.includes('+superadmin')) {
+      const parts = registrationEmail.split('@');
+      registrationEmail = `${parts[0]}+superadmin@${parts[1]}`;
+    }
+
+    // Call the database function to register the user directly
+    const { data, error } = await supabase.rpc('register_user_directly', {
+      p_email: registrationEmail,
+      p_password: password,
+      p_name: name.trim(),
+      p_role: role
     });
 
     if (error) throw error;
-    if (!data.user) throw new Error('Account signup succeeded, but user data is unavailable.');
+    if (data && data.success === false) {
+      throw new Error(data.message || 'Registration failed.');
+    }
 
-    const newUserId = data.user.id;
+    const newUserId = data.user_id;
 
-    // Insert/upsert into profiles table to link roles and assign created_by fields
+    // Update the profile row to record who created it
     const { data: profile, error: profileErr } = await supabase
       .from('profiles')
-      .upsert({
-        id: newUserId,
-        name,
-        email,
-        role,
-        is_active: true,
+      .update({
         created_by: currentUser?.id || null,
         updated_at: new Date().toISOString()
       })
+      .eq('id', newUserId)
       .select()
       .single();
 
     if (profileErr) {
-      console.warn('Failed to upsert user profile:', profileErr.message);
+      throw new Error(`Failed to update database profile: ${profileErr.message}`);
     }
 
     // Log action
@@ -64,7 +67,7 @@ export const superadminService = {
       'created_admin',
       'profiles',
       newUserId,
-      { name, email, role }
+      { name: name.trim(), email: email.trim(), role }
     );
 
     return profile || { id: newUserId, email, name, role, is_active: true };

@@ -138,14 +138,15 @@ export default async function handler(req, res) {
     // Recalculate calculations to verify invoice splits
     const items = order.items || [];
     const subtotal = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    const displayOrderId = order.id.startsWith('00000000-0000-0000-0000-') ? order.id.split('-').pop() : order.id.slice(0, 8).toUpperCase();
     
     // Use imported constants equivalent logic
-    const SHIPPING_CHARGES = 150;
-    const FREE_SHIPPING_THRESHOLD = 2500;
-    const TAX_RATE = 0.18;
+    const SHIPPING_CHARGES = 0;
+    const FREE_SHIPPING_THRESHOLD = 0;
+    const TAX_RATE = 0.00;
 
-    const shippingCost = subtotal > 0 && subtotal < FREE_SHIPPING_THRESHOLD ? SHIPPING_CHARGES : 0;
-    const taxCost = subtotal * TAX_RATE;
+    const shippingCost = 0;
+    const taxCost = 0;
 
     // Create a nodemailer transporter
     const transporter = nodemailer.createTransport({
@@ -359,7 +360,7 @@ export default async function handler(req, res) {
             <table class="meta-table">
               <tr>
                 <td class="meta-label">Order Number</td>
-                <td class="meta-value">${order.id}</td>
+                <td class="meta-value">${displayOrderId}</td>
               </tr>
               <tr>
                 <td class="meta-label">Date Placed</td>
@@ -401,23 +402,14 @@ export default async function handler(req, res) {
                 <td class="calculation-label">Subtotal</td>
                 <td class="calculation-val">${formatINR(subtotal)}</td>
               </tr>
-              ${shippingCost > 0 ? `
-                <tr class="calculation-row">
-                  <td class="calculation-label">Shipping Charges</td>
-                  <td class="calculation-val">${formatINR(shippingCost)}</td>
-                </tr>
-              ` : `
-                <tr class="calculation-row">
-                  <td class="calculation-label">Shipping Charges</td>
-                  <td class="calculation-val" style="color: #10b981; font-weight: 700;">FREE</td>
-                </tr>
-              `}
+              ${order.cod_fee && Number(order.cod_fee) > 0 ? `
               <tr class="calculation-row">
-                <td class="calculation-label">GST (18%)</td>
-                <td class="calculation-val">${formatINR(taxCost)}</td>
+                <td class="calculation-label">Cash on Delivery (COD) Fee</td>
+                <td class="calculation-val">${formatINR(order.cod_fee)}</td>
               </tr>
+              ` : ''}
               <tr class="calculation-row total-row">
-                <td class="calculation-label">Total Amount Paid</td>
+                <td class="calculation-label">${order.payment_method === 'cod' ? 'Total Amount to Pay' : 'Total Amount Paid'}</td>
                 <td class="calculation-val">${formatINR(order.total)}</td>
               </tr>
             </table>
@@ -442,11 +434,16 @@ export default async function handler(req, res) {
 
     // Define mail options
     const mailOptions = {
-      from: `"Sõshka Jewellery" <${user}>`,
+      from: `"Soshka Jewellery" <${user}>`,
       to: customerEmail,
-      subject: `Order Confirmed - Invoice #${order.id.slice(0, 8).toUpperCase()}`,
-      text: `Thank you for your purchase from Sõshka Store!\n\nOrder Number: ${order.id}\nTotal Amount Paid: ${formatINR(order.total)}\n\nThank you for shopping with us!`,
+      replyTo: "soshka.in@gmail.com",
+      subject: `Order Confirmed - Invoice #${displayOrderId} | Soshka`,
+      text: `Thank you for your purchase from Soshka Store!\n\nOrder Number: ${displayOrderId}\nTotal Amount: ${formatINR(order.total)}\n\nThank you for shopping with us!`,
       html: htmlContent,
+      headers: {
+        "X-Auto-Response-Suppress": "All",
+        "Precedence": "bulk"
+      }
     };
 
     // Send the email

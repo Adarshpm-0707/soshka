@@ -47,7 +47,8 @@ import {
   Phone,
   UserCheck,
   UserX,
-  UserPlus
+  UserPlus,
+  LogOut
 } from 'lucide-react';
 
 const SuperAdminDashboard = () => {
@@ -74,7 +75,7 @@ const SuperAdminDashboard = () => {
   // ==========================================
   // STATE DEFINITIONS
   // ==========================================
-  
+
   // Overview Tab Stats & Logs
   const [overviewStats, setOverviewStats] = useState({
     adminsCount: 0,
@@ -88,13 +89,13 @@ const SuperAdminDashboard = () => {
   const [overviewLoading, setOverviewLoading] = useState(true);
 
   // Manage Admins Tab (uses hook + local additions)
-  const { 
-    admins, 
-    loading: adminsLoading, 
-    fetchAdmins, 
-    toggleAdminActive, 
-    updateAdminRole, 
-    deleteAdmin 
+  const {
+    admins,
+    loading: adminsLoading,
+    fetchAdmins,
+    toggleAdminActive,
+    updateAdminRole,
+    deleteAdmin
   } = useSuperAdmin();
   const [adminDeleteId, setAdminDeleteId] = useState(null);
   const [adminDeleting, setAdminDeleting] = useState(false);
@@ -166,7 +167,7 @@ const SuperAdminDashboard = () => {
   // ==========================================
   // DATA FETCHING TRIGGERS
   // ==========================================
-  
+
   // 1. Fetch Overview stats
   const fetchOverviewData = async () => {
     setOverviewLoading(true);
@@ -181,7 +182,6 @@ const SuperAdminDashboard = () => {
         .select('*', { count: 'exact', head: true })
         .eq('role', 'user')
         .not('email', 'ilike', '%admin%')
-        .neq('email', 'adarshpm0707@gmail.com')
         .neq('email', 'soshka.in@gmail.com');
 
       const { count: productsCount } = await supabase
@@ -215,7 +215,7 @@ const SuperAdminDashboard = () => {
         .select('*, profile:profiles(name, email)')
         .order('created_at', { ascending: false })
         .limit(6);
-      
+
       setRecentLogs(logsData || []);
     } catch (err) {
       console.error(err);
@@ -330,7 +330,7 @@ const SuperAdminDashboard = () => {
         .select('id, name, email')
         .in('role', ['admin', 'superadmin']);
       setActorsList(data || []);
-    } catch (_) {}
+    } catch (_) { }
   };
 
   const getPandLStats = () => {
@@ -350,7 +350,7 @@ const SuperAdminDashboard = () => {
     let totalCOGS = 0;
 
     const productStats = {};
-    
+
     products.forEach(p => {
       productStats[p.id] = {
         name: p.name,
@@ -365,15 +365,15 @@ const SuperAdminDashboard = () => {
 
     const transactionList = filtered.map(order => {
       let orderCOGS = 0;
-      
+
       const itemsList = (order.items || []).map(item => {
         const prodId = item.product_id || item.id;
         const currentProd = products.find(p => p.id === prodId);
         const itemCost = currentProd ? (Number(currentProd.cost) || 0) : 0;
         const itemCOGS = itemCost * (item.quantity || 1);
-        
+
         orderCOGS += itemCOGS;
-        
+
         if (productStats[prodId]) {
           productStats[prodId].quantity += item.quantity || 1;
           productStats[prodId].revenue += (item.price || 0) * (item.quantity || 1);
@@ -486,7 +486,7 @@ const SuperAdminDashboard = () => {
     }
     try {
       await toggleAdminActive(admin.id, !admin.is_active);
-    } catch (_) {}
+    } catch (_) { }
   };
 
   // Admin: Change Role
@@ -497,7 +497,7 @@ const SuperAdminDashboard = () => {
     }
     try {
       await updateAdminRole(admin.id, newRole);
-    } catch (_) {}
+    } catch (_) { }
   };
 
   // Admin: Confirm Delete
@@ -508,7 +508,7 @@ const SuperAdminDashboard = () => {
       await deleteAdmin(adminDeleteId);
       setAdminDeleteId(null);
       fetchOverviewData();
-    } catch (_) {} finally {
+    } catch (_) { } finally {
       setAdminDeleting(false);
     }
   };
@@ -600,7 +600,12 @@ const SuperAdminDashboard = () => {
         .delete()
         .eq('id', productDeleteId);
       if (error) throw error;
-      await adminLogService.logAction('deleted_product', 'products', productDeleteId, { id: productDeleteId });
+      const deletedProduct = products.find(p => p.id === productDeleteId);
+      await adminLogService.logAction('deleted_product', 'products', productDeleteId, {
+        id: productDeleteId,
+        name: deletedProduct?.name,
+        sku: deletedProduct?.sku
+      });
       showToast('Product listings deleted successfully.', 'info');
       setProducts(prev => prev.filter(p => p.id !== productDeleteId));
       setProductDeleteId(null);
@@ -650,7 +655,7 @@ const SuperAdminDashboard = () => {
 
   return (
     <div className="space-y-8 text-white max-w-6xl mx-auto">
-      
+
       {/* Top Console Header & Tabs switcher */}
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-[#1c1c1e] pb-6">
@@ -664,22 +669,24 @@ const SuperAdminDashboard = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={() => { setTab('payments'); }}
-              className="px-4 py-2.5 bg-white/5 border border-white/[0.08] hover:bg-[#ff2a85]/10 hover:border-[#ff2a85]/35 text-xs font-bold rounded-xl transition"
-            >
-              Gateway Configurations
-            </button>
+
             <button
               onClick={() => { setTab('admins'); setIsProvisionFormOpen(true); }}
               className="px-4 py-2.5 bg-[#ff2a85] hover:opacity-90 text-xs font-bold rounded-xl shadow-lg shadow-pink-500/10 transition"
             >
               Provision Admin
             </button>
+            <Link
+              to="/superadmin/logout"
+              className="px-4 py-2.5 bg-red-950/20 hover:bg-red-900/35 border border-red-500/20 text-red-400 hover:text-red-300 text-xs font-bold rounded-xl transition flex items-center gap-1.5"
+            >
+              <LogOut size={13} />
+              Sign Out
+            </Link>
           </div>
         </div>
 
-    
+
       </div>
 
       {/* ==========================================
@@ -981,7 +988,7 @@ const SuperAdminDashboard = () => {
                                   {adm.name || 'Staff operator'}
                                   {isSelf && <span className="text-[9px] text-[#ff2a85] bg-pink-950/40 border border-pink-500/10 px-1.5 py-0.5 rounded font-extrabold ml-2">You</span>}
                                 </span>
-                                <span className="text-[10px] text-slate-500 font-normal block">{adm.email}</span>
+                                <span className="text-[10px] text-slate-500 font-normal block">{adm.email?.replace(/\+(admin|superadmin)@/, '@')}</span>
                               </div>
                             </div>
                           </td>
@@ -1428,11 +1435,10 @@ const SuperAdminDashboard = () => {
                               )}
                             </td>
                             <td className="py-4 px-6">
-                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                                product.stock > 0
-                                  ? 'bg-emerald-950/20 text-emerald-400'
-                                  : 'bg-red-950/20 text-red-400'
-                              }`}>
+                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${product.stock > 0
+                                ? 'bg-emerald-950/20 text-emerald-400'
+                                : 'bg-red-950/20 text-red-400'
+                                }`}>
                                 {product.stock > 0 ? `${product.stock} units` : 'Out of stock'}
                               </span>
                             </td>
@@ -1551,7 +1557,7 @@ const SuperAdminDashboard = () => {
                           className="hover:bg-white/[0.01] transition-colors cursor-pointer"
                         >
                           <td className="py-4 px-6 font-mono text-xs text-slate-400 truncate max-w-[120px]" title={order.id}>
-                            {order.id}
+                            {order.id.startsWith('00000000-0000-0000-0000-') ? order.id.split('-').pop() : order.id.slice(0, 8).toUpperCase()}
                           </td>
                           <td className="py-4 px-6">
                             <span className="text-slate-100 font-bold block">{order.profile?.name || 'Anonymous'}</span>
@@ -1607,7 +1613,7 @@ const SuperAdminDashboard = () => {
                     <ShoppingCart size={20} />
                     <span className="text-[10px] uppercase font-extrabold tracking-widest text-slate-400">Order details panel</span>
                   </div>
-                  <h3 className="text-base font-black font-mono select-all truncate max-w-[90%]">{selectedOrder.id}</h3>
+                  <h3 className="text-base font-black font-mono select-all truncate max-w-[90%]">{selectedOrder.id.startsWith('00000000-0000-0000-0000-') ? selectedOrder.id.split('-').pop() : selectedOrder.id.slice(0, 8).toUpperCase()}</h3>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
@@ -1718,6 +1724,9 @@ const SuperAdminDashboard = () => {
                   className="bg-slate-950 border border-[#26262a] text-slate-300 text-xs rounded-xl px-3 py-2 outline-none"
                 >
                   <option value="">All Operations</option>
+                  <option value="logged_in">logged_in</option>
+                  <option value="created_product">created_product</option>
+                  <option value="updated_product">updated_product</option>
                   <option value="created_admin">created_admin</option>
                   <option value="activated_admin">activated_admin</option>
                   <option value="deactivated_admin">deactivated_admin</option>
@@ -1754,7 +1763,7 @@ const SuperAdminDashboard = () => {
                   <option value="">All Operators</option>
                   {actorsList.map((a) => (
                     <option key={a.id} value={a.id}>
-                      {a.name || a.email}
+                      {a.name || a.email?.replace(/\+(admin|superadmin)@/, '@')}
                     </option>
                   ))}
                 </select>
@@ -1817,7 +1826,7 @@ const SuperAdminDashboard = () => {
                             </td>
                             <td className="py-4 px-6">
                               <span className="text-slate-105 font-bold block">{log.profile?.name || 'System Actor'}</span>
-                              <span className="text-[10px] text-slate-500 block font-normal">{log.profile?.email || 'automated@soshka.com'}</span>
+                              <span className="text-[10px] text-slate-500 block font-normal">{log.profile?.email?.replace(/\+(admin|superadmin)@/, '@') || 'automated@soshka.com'}</span>
                             </td>
                             <td className="py-4 px-6">
                               <span className="px-2 py-0.5 rounded bg-slate-950 text-pink-400 text-[10px] uppercase font-bold font-mono border border-[#ff2a85]/10">
@@ -1889,7 +1898,7 @@ const SuperAdminDashboard = () => {
       {/* VIEW: PROFIT & LOSS STATEMENTS */}
       {activeTab === 'pandl' && (() => {
         const { revenue, cogs, grossProfit, grossMargin, transactionList, productStatsList } = getPandLStats();
-        
+
         return (
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -1972,7 +1981,7 @@ const SuperAdminDashboard = () => {
 
             {/* BREAKDOWN TABLES */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              
+
               {/* Product Profitability Breakdown */}
               <div className="lg:col-span-7 bg-[#0c0c0d] border border-[#1c1c1e] rounded-3xl shadow-sm overflow-hidden flex flex-col justify-between">
                 <div>
@@ -2016,9 +2025,8 @@ const SuperAdminDashboard = () => {
                                 {formatCurrency(prod.profit)}
                               </td>
                               <td className="py-3 px-6 text-center">
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
-                                  prod.margin >= 25 ? 'bg-emerald-950/40 text-emerald-400 border border-emerald-500/10' : 'bg-amber-950/40 text-amber-400 border border-amber-500/10'
-                                }`}>
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${prod.margin >= 25 ? 'bg-emerald-950/40 text-emerald-400 border border-emerald-500/10' : 'bg-amber-950/40 text-amber-400 border border-amber-500/10'
+                                  }`}>
                                   {prod.margin.toFixed(1)}%
                                 </span>
                               </td>
@@ -2062,7 +2070,7 @@ const SuperAdminDashboard = () => {
                             <tr key={order.id} className="hover:bg-white/[0.01] transition-colors">
                               <td className="py-3 px-6">
                                 <span className="font-mono text-[10px] text-slate-400 block uppercase select-all">
-                                  #{order.id.slice(0, 8)}
+                                  #{order.id.startsWith('00000000-0000-0000-0000-') ? order.id.split('-').pop() : order.id.slice(0, 8).toUpperCase()}
                                 </span>
                                 <span className="text-[10px] text-slate-500 block font-normal">
                                   {new Date(order.created_at).toLocaleDateString()}
@@ -2074,9 +2082,8 @@ const SuperAdminDashboard = () => {
                                 {formatCurrency(order.profit)}
                               </td>
                               <td className="py-3 px-6 text-center">
-                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold font-mono ${
-                                  order.margin >= 25 ? 'bg-emerald-950/40 text-emerald-400' : 'bg-amber-950/40 text-amber-400'
-                                }`}>
+                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold font-mono ${order.margin >= 25 ? 'bg-emerald-950/40 text-emerald-400' : 'bg-amber-950/40 text-amber-400'
+                                  }`}>
                                   {order.margin.toFixed(0)}%
                                 </span>
                               </td>

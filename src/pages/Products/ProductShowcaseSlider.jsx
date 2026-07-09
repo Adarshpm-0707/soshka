@@ -219,7 +219,7 @@ const ProductShowcaseSlider = () => {
             return (
               <div
                 key={product.id}
-                onClick={() => navigate(`/products/${product.id}`)}
+                onClick={() => navigate(`/products/${product.slug || product.id}`)}
                 className="slide-element w-full max-w-[200px] h-[280px] md:w-[240px] md:h-[330px] shrink-0 rounded-2xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/50 shadow-md relative group transition-shadow duration-300 hover:shadow-[0_8px_32px_rgba(0,0,0,0.5)] cursor-pointer"
               >
                 {/* Background Image */}

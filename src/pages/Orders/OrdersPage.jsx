@@ -81,7 +81,7 @@ const OrdersPage = () => {
                     <Calendar size={14} />
                     <span>{dateStr}</span>
                     <span>•</span>
-                    <span>ID: {order.id.substring(0, 8)}...</span>
+                    <span>ID: {order.id.startsWith('00000000-0000-0000-0000-') ? order.id.split('-').pop() : order.id.substring(0, 8).toUpperCase()}</span>
                   </div>
                   <h4 className="text-base font-bold text-slate-850 dark:text-white">
                     {itemCount} {itemCount === 1 ? 'Item' : 'Items'} Purchased
@@ -92,8 +92,29 @@ const OrdersPage = () => {
                 </div>
 
                 {/* Status and Action Link */}
-                <div className="flex items-center space-x-4 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 border-slate-100 dark:border-slate-800 pt-3 md:pt-0">
-                  <Badge status={order.status} />
+                <div className="flex items-center space-x-3 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 border-slate-100 dark:border-slate-800 pt-3 md:pt-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge status={order.order_status || order.status} />
+                    {((order.order_status === 'cancelled' || order.status === 'cancelled') && order.payment_method !== 'cod') && (
+                      <>
+                        {order.refund_status === 'processing' && (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide bg-amber-50 text-amber-700 dark:bg-amber-950/20 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50">
+                            Refund Processing
+                          </span>
+                        )}
+                        {order.refund_status === 'completed' && (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50">
+                            Refund Completed
+                          </span>
+                        )}
+                        {order.refund_status === 'failed' && (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400 border border-red-200 dark:border-red-900/50">
+                            Refund Failed
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
                   <span className="p-2 text-slate-400 group-hover:text-primary-650 group-hover:translate-x-1.5 transition-all duration-200">
                     <ArrowRight size={18} />
                   </span>

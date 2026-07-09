@@ -253,7 +253,17 @@ const SuperAdminEditProductPage = () => {
       if (error) throw error;
 
       // Log the superadmin edit action
-      await adminLogService.logAction('updated_product', 'products', id, { name, actor: 'superadmin' });
+      await adminLogService.logAction('updated_product', 'products', id, {
+        name,
+        brand,
+        sku,
+        price: originalPrice,
+        offer_price: offerPrice,
+        stock,
+        sizes,
+        category_id: categoryId,
+        actor: 'superadmin'
+      });
 
       showToast('Product updated successfully!', 'success');
       navigate('/superadmin/products');

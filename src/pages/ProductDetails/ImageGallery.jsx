@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const ImageGallery = ({ images = [] }) => {
+const ImageGallery = ({ images = [], productName = 'Product' }) => {
   const [activeImage, setActiveImage] = useState('');
 
   // Filter out empty, non-string, or whitespace-only URLs
@@ -43,7 +43,7 @@ const ImageGallery = ({ images = [] }) => {
             >
               <img
                 src={img}
-                alt={`Thumbnail ${idx + 1}`}
+                alt={`Thumbnail ${idx + 1} of ${productName}`}
                 className="object-cover w-full h-full"
               />
             </button>
@@ -55,7 +55,7 @@ const ImageGallery = ({ images = [] }) => {
       <div className="flex-1 w-full lg:w-auto order-1 lg:order-2 aspect-square rounded-3xl overflow-hidden bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-850 shadow-md relative group">
         <img
           src={activeImage}
-          alt="Product viewport"
+          alt={`${productName} - Main View`}
           className="object-cover w-full h-full transform transition duration-700 ease-out group-hover:scale-[1.03]"
         />
       </div>

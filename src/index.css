@@ -1,11 +1,12 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap');
-
 @font-face {
-  font-family: 'TT Drugs';
-  src: url('https://db.onlinewebfonts.com/t/790e1917fcd40124556e3dfbfffa3562.woff2') format('woff2'),
-       url('https://db.onlinewebfonts.com/t/790e1917fcd40124556e3dfbfffa3562.woff') format('woff'),
-       url('https://db.onlinewebfonts.com/t/790e1917fcd40124556e3dfbfffa3562.ttf') format('truetype');
+  font-family: "TT Drugs";
+  src:
+    url("https://db.onlinewebfonts.com/t/790e1917fcd40124556e3dfbfffa3562.woff2")
+      format("woff2"),
+    url("https://db.onlinewebfonts.com/t/790e1917fcd40124556e3dfbfffa3562.woff")
+      format("woff"),
+    url("https://db.onlinewebfonts.com/t/790e1917fcd40124556e3dfbfffa3562.ttf")
+      format("truetype");
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;
@@ -21,7 +22,7 @@ html {
 
 @layer base {
   body {
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-family: "Plus Jakarta Sans", sans-serif;
     @apply antialiased selection:bg-primary-500/25;
     -webkit-overflow-scrolling: touch;
   }
@@ -46,19 +47,19 @@ html {
   --base-100: #ffffff;
   --base-200: #fec81d;
   --base-300: #0f0f0f;
-  --crimson: #8B1A3A;
-  --crimson-deep: #5C0F26;
-  --crimson-light: #C4426A;
-  --rose: #F5E6EC;
-  --rose-mid: #EAC8D4;
-  --rose-pale: #FBF4F7;
-  --gold: #C9956A;
-  --gold-light: #E8C9A8;
-  --text-dark: #2A0D18;
-  --text-mid: #7A3D52;
-  --text-light: #B07A8A;
-  --white: #FFFFFF;
-  --border: #E5C4CE;
+  --crimson: #8b1a3a;
+  --crimson-deep: #5c0f26;
+  --crimson-light: #c4426a;
+  --rose: #f5e6ec;
+  --rose-mid: #eac8d4;
+  --rose-pale: #fbf4f7;
+  --gold: #c9956a;
+  --gold-light: #e8c9a8;
+  --text-dark: #2a0d18;
+  --text-mid: #7a3d52;
+  --text-light: #b07a8a;
+  --white: #ffffff;
+  --border: #e5c4ce;
 }
 
 .hero {
@@ -137,18 +138,30 @@ html {
   height: 100vh;
   z-index: 10;
   pointer-events: none;
- 
 }
 
-/* TITLE */
-.hero__top h1 {
+/* BRAND VISUAL TITLE */
+.hero-brand-title {
   font-size: clamp(85px, 18vw, 260px);
   font-weight: 500;
   line-height: 0.9;
   letter-spacing: 2px;
   margin: 0;
   color: #ffffff;
-  font-family: 'TT Drugs', sans-serif;
+  font-family: "TT Drugs", sans-serif;
+}
+
+/* SEMANTIC SEO H1 HEADER */
+.hero__top h1 {
+  font-size: clamp(18px, 3.2vw, 36px);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 2px;
+  margin: 15px 0 0 0;
+  color: #ffffff;
+  font-family: "TT Drugs", sans-serif;
+  text-transform: uppercase;
+  max-width: 90%;
 }
 
 /* SUBTEXT */
@@ -199,11 +212,21 @@ html {
 
 /* ================= CUSTOM NAVIGATION ANIMATIONS ================= */
 @keyframes heartbeat {
-  0% { transform: scale(1); }
-  14% { transform: scale(1.12); }
-  28% { transform: scale(1); }
-  42% { transform: scale(1.12); }
-  70% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  14% {
+    transform: scale(1.12);
+  }
+  28% {
+    transform: scale(1);
+  }
+  42% {
+    transform: scale(1.12);
+  }
+  70% {
+    transform: scale(1);
+  }
 }
 
 .animate-heartbeat:hover {
@@ -224,6 +247,18 @@ html {
 .dark .bg-slate-850 {
   background-color: #0c0c0d !important;
   border-color: #1c1c1e !important;
+}
+
+/* Force white background in navbar elements even in dark mode */
+.navbar-force-white,
+.dark .navbar-force-white {
+  background-color: #ffffff !important;
+  color: #98183f !important;
+  border-color: rgba(152, 24, 63, 0.5) !important;
+}
+.navbar-force-white:hover,
+.dark .navbar-force-white:hover {
+  background-color: #fff1f2 !important; /* rose-50 */
 }
 
 .dark .border-slate-200,
@@ -310,10 +345,10 @@ html {
 }
 
 .category-marquee-item.with-text h1 {
-  font-size: clamp(55px, 8vw, 130px);
+  font-size: clamp(28px, 8vw, 130px);
   text-transform: uppercase;
   color: #ffffff;
-  font-family: 'TT Drugs', sans-serif;
+  font-family: "TT Drugs", sans-serif;
   letter-spacing: 2px;
   white-space: nowrap;
   user-select: none;
@@ -327,7 +362,10 @@ html {
 
 /* ================= PREMIUM PRODUCT CARD STYLES ================= */
 .product-card-premium {
-  transition: border-color 0.4s ease, box-shadow 0.4s ease, background-color 0.4s ease !important;
+  transition:
+    border-color 0.4s ease,
+    box-shadow 0.4s ease,
+    background-color 0.4s ease !important;
 }
 
 .product-card-premium:hover {
@@ -342,16 +380,16 @@ html {
 
 /* ================= JEWELLERY CRM CUSTOM STYLES ================= */
 .crm-body {
-  font-family: 'Jost', sans-serif;
+  font-family: "Jost", sans-serif;
   color: var(--text-dark);
 }
 
 .crm-font-serif {
-  font-family: 'Jost', sans-serif;
+  font-family: "Jost", sans-serif;
 }
 
 .crm-font-sans {
-  font-family: 'Jost', sans-serif;
+  font-family: "Jost", sans-serif;
 }
 
 /* STATS */
@@ -366,10 +404,10 @@ html {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 18px 16px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 .stat-val-crm {
-  font-family: 'Jost', sans-serif;
+  font-family: "Jost", sans-serif;
   font-size: 24px;
   font-weight: 700;
   color: var(--crimson-deep);
@@ -400,7 +438,7 @@ html {
   margin-bottom: 18px;
 }
 .section-title-crm {
-  font-family: 'Jost', sans-serif;
+  font-family: "Jost", sans-serif;
   font-size: 16px;
   font-weight: 700;
   color: var(--crimson-deep);
@@ -410,7 +448,7 @@ html {
   justify-content: space-between;
 }
 .section-link-crm {
-  font-family: 'Jost', sans-serif;
+  font-family: "Jost", sans-serif;
   font-size: 11px;
   color: var(--crimson-light);
   cursor: pointer;
@@ -515,7 +553,7 @@ html {
   gap: 10px;
 }
 .page-title-crm {
-  font-family: 'Jost', sans-serif;
+  font-family: "Jost", sans-serif;
   font-size: 24px;
   font-weight: 800;
   color: var(--crimson-deep);
@@ -526,13 +564,17 @@ html {
   margin-top: 2px;
 }
 .add-btn-crm {
-  background: linear-gradient(135deg, var(--crimson) 0%, var(--crimson-deep) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--crimson) 0%,
+    var(--crimson-deep) 100%
+  );
   color: #fff;
   border: none;
   padding: 10px 22px;
   border-radius: 8px;
   cursor: pointer;
-  font-family: 'Jost', sans-serif;
+  font-family: "Jost", sans-serif;
   font-size: 13px;
   letter-spacing: 0.5px;
   transition: opacity 0.2s;
@@ -549,11 +591,12 @@ html {
   margin-bottom: 16px;
   align-items: center;
 }
-.filter-input-crm, .filter-select-crm {
+.filter-input-crm,
+.filter-select-crm {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px 12px;
-  font-family: 'Jost', sans-serif;
+  font-family: "Jost", sans-serif;
   font-size: 12px;
   color: var(--text-dark);
   background: var(--rose-pale);
@@ -563,7 +606,8 @@ html {
   flex: 1;
   min-width: 180px;
 }
-.filter-input-crm:focus, .filter-select-crm:focus {
+.filter-input-crm:focus,
+.filter-select-crm:focus {
   border-color: var(--crimson-light);
 }
 
@@ -589,7 +633,7 @@ html {
   color: var(--gold-light);
   font-weight: 500;
   letter-spacing: 0.5px;
-  font-family: 'Jost', sans-serif;
+  font-family: "Jost", sans-serif;
   font-size: 11px;
   text-transform: uppercase;
   white-space: nowrap;
@@ -669,7 +713,7 @@ html {
   cursor: pointer;
   font-size: 11px;
   color: var(--text-mid);
-  font-family: 'Jost', sans-serif;
+  font-family: "Jost", sans-serif;
 }
 .del-btn-crm {
   background: #fff5f5;
@@ -722,7 +766,7 @@ html {
   padding: 4px;
 }
 .card-name-crm {
-  font-family: 'Jost', sans-serif;
+  font-family: "Jost", sans-serif;
   font-size: 15px;
   font-weight: 700;
   color: var(--crimson-deep);
@@ -740,7 +784,7 @@ html {
   margin-top: 7px;
 }
 .card-price-crm {
-  font-family: 'Jost', sans-serif;
+  font-family: "Jost", sans-serif;
   font-size: 15px;
   font-weight: 700;
   color: var(--crimson);
@@ -831,7 +875,7 @@ html {
   padding: 5px 12px;
   border-radius: 6px;
   font-size: 11px;
-  font-family: 'Jost', sans-serif;
+  font-family: "Jost", sans-serif;
   cursor: pointer;
   margin-top: 4px;
 }
@@ -842,7 +886,7 @@ html {
   padding: 5px 12px;
   border-radius: 6px;
   font-size: 11px;
-  font-family: 'Jost', sans-serif;
+  font-family: "Jost", sans-serif;
   cursor: pointer;
   margin-top: 4px;
 }
@@ -857,7 +901,10 @@ html {
 .dark .crm-body {
   color: #ffffff;
 }
-.dark .stat-card-crm, .dark .section-card-crm, .dark .item-card-crm, .dark .alert-card-crm {
+.dark .stat-card-crm,
+.dark .section-card-crm,
+.dark .item-card-crm,
+.dark .alert-card-crm {
   background-color: #0c0c0d !important;
   border-color: #1c1c1e !important;
 }
@@ -886,11 +933,13 @@ html {
   border-color: #2c2c2e !important;
   color: #ffffff !important;
 }
-.dark .qty-val-crm, .dark .item-name-cell-crm, .dark .recent-name-crm {
+.dark .qty-val-crm,
+.dark .item-name-cell-crm,
+.dark .recent-name-crm {
   color: #ffffff !important;
 }
 
-@media(max-width:700px) {
+@media (max-width: 700px) {
   .stats-grid-crm {
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 10px;
@@ -911,7 +960,6 @@ html {
   display: none !important;
 }
 .scrollbar-none {
-  -ms-overflow-style: none !important;  /* IE and Edge */
-  scrollbar-width: none !important;  /* Firefox */
+  -ms-overflow-style: none !important; /* IE and Edge */
+  scrollbar-width: none !important; /* Firefox */
 }
-

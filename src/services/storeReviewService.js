@@ -75,5 +75,40 @@ export const storeReviewService = {
     }
 
     return true;
+  },
+
+  /**
+   * Update a store-wide review by ID.
+   */
+  async updateStoreReview(id, { name, location, rating, comment, image_url, platform }) {
+    const { data, error } = await supabase
+      .from('store_reviews')
+      .update({
+        name,
+        location,
+        rating: Number(rating),
+        comment,
+        image_url: image_url || null,
+        platform: platform || 'other'
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Log this action in admin activity log
+    try {
+      await adminLogService.logAction(
+        'updated_store_review',
+        'store_reviews',
+        id,
+        { name, has_image: !!image_url }
+      );
+    } catch (logErr) {
+      console.error('Failed to log admin action:', logErr);
+    }
+
+    return data;
   }
 };

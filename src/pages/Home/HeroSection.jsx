@@ -248,13 +248,32 @@ const HeroSection = () => {
       <section className="hero" ref={heroRef}>
         {/* Brand Text Overlay */}
         <div className="hero__top">
-          <h1>Sõshka</h1>
+          <div className="hero-brand-title select-none">Sõshka</div>
+          <h1>Premium Women's & Kids' Jewellery Online</h1>
           <p>Premium Handpicked Essentials</p>
         </div>
 
         {/* Parallax backgrounds and WebGL canvas overlay */}
         <div className="hero__row">
-          <img className="hero__bg" src="/img/hero.PNG" alt="Hero Background" />
+          <picture>
+            <source
+              type="image/webp"
+              srcSet="/img/hero-400.webp 400w, /img/hero-800.webp 800w"
+              sizes="100vw"
+            />
+            <img
+              className="hero__bg"
+              src="/img/hero-800.webp"
+              srcSet="/img/hero-400.webp 400w, /img/hero-800.webp 800w"
+              sizes="100vw"
+              alt="Soshka premium women's and kids' jewellery — hero banner"
+              width="800"
+              height="500"
+              fetchpriority="high"
+              loading="eager"
+              decoding="async"
+            />
+          </picture>
           <canvas ref={canvasRef} className="hero-canvas"></canvas>
         </div>
       </section>

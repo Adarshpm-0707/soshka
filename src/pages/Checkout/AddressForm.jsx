@@ -19,8 +19,18 @@ const AddressForm = ({ onSubmit, loading = false }) => {
   });
   const [errors, setErrors] = useState({});
 
-  // Pre-fill fields from profile if available
+  // Load from sessionStorage or fallback to profile
   useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('checkout_address_form');
+      if (saved) {
+        setFormData(JSON.parse(saved));
+        return;
+      }
+    } catch (e) {
+      console.error('Error loading saved checkout form:', e);
+    }
+
     if (profile) {
       const dbAddress = profile.address || {};
       setFormData({
@@ -34,6 +44,13 @@ const AddressForm = ({ onSubmit, loading = false }) => {
       });
     }
   }, [profile, user]);
+
+  // Save form state to sessionStorage on change
+  useEffect(() => {
+    if (formData.name || formData.addressLine || formData.phone) {
+      sessionStorage.setItem('checkout_address_form', JSON.stringify(formData));
+    }
+  }, [formData]);
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -53,6 +70,7 @@ const AddressForm = ({ onSubmit, loading = false }) => {
       return;
     }
 
+    sessionStorage.removeItem('checkout_address_form');
     onSubmit(formData);
   };
 

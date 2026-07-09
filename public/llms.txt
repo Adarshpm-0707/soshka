@@ -1,0 +1,63 @@
+﻿# Soshka — Premium Women's & Kids' Jewellery
+
+> Soshka (soshka.in) is a premium Indian e-commerce store specialising in anti-tarnish fashion jewellery for women and kids. We offer earrings, necklaces, bracelets, rings, bangles, hair accessories, and curated gift sets, shipped across all of India with secure payments via Razorpay.
+
+## About Soshka
+
+Soshka is owned and operated by Aleef Global, based in Kannur, Kerala, India. We curate handpicked, high-quality, hypoallergenic jewellery that combines contemporary design with advanced anti-tarnish technology, ensuring pieces retain their brilliance for years.
+
+- **Founded**: Kannur, Kerala, India
+- **Speciality**: Anti-tarnish fashion jewellery for women and kids
+- **Shipping**: Pan-India delivery (2-5 business days)
+- **Payment Methods**: Razorpay (UPI, Cards, Net Banking, Wallets) and Cash on Delivery (COD)
+- **Returns**: 48-hour return window for damaged or defective items (unboxing video required)
+
+## Product Categories
+
+- Earrings (studs, hoops, drops, danglers)
+- Necklaces (chains, pendants, layered sets)
+- Bracelets & Bangles
+- Rings (stacking, statement, solitaire)
+- Hair Accessories (clips, headbands, pins)
+- Kids Jewellery (nickel-free, lead-free, safety clasps)
+- Gifts & Curated Sets
+
+## Key Pages
+
+- Homepage: https://soshka.in/
+- Shop All Products: https://soshka.in/products
+- Earrings: https://soshka.in/products?category=Earrings
+- Necklaces: https://soshka.in/products?category=Necklaces
+- Bracelets: https://soshka.in/products?category=Bracelets
+- Rings: https://soshka.in/products?category=Rings
+- About Us: https://soshka.in/about
+- Contact Us: https://soshka.in/contact
+- Reviews: https://soshka.in/reviews
+
+## Policies
+
+- Shipping Policy: https://soshka.in/shipping-policy
+- Returns & Refund Policy: https://soshka.in/returns-refunds
+- Privacy Policy: https://soshka.in/privacy-policy
+- Terms & Conditions: https://soshka.in/terms
+
+## Contact
+
+- Email: soshka.in@gmail.com
+- WhatsApp: +91 94964 65949
+- Address: Aleef Global, Kannur, Kerala, India
+- Instagram: https://www.instagram.com/soshka.in
+
+## Trust & Security
+
+- All payments processed via Razorpay (PCI-DSS compliant)
+- HTTPS enforced with HSTS preload
+- Customer data handled per Indian IT Act and DPDP Act compliance
+
+## Sitemap
+
+- https://soshka.in/sitemap.xml
+
+## Robots
+
+- https://soshka.in/robots.txt

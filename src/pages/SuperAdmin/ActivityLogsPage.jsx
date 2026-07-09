@@ -102,6 +102,9 @@ const ActivityLogsPage = () => {
               className="bg-slate-950 border border-[#26262a] text-slate-300 rounded-xl px-3 py-2.5 outline-none focus:border-[#ff2a85]"
             >
               <option value="">All Operations</option>
+              <option value="logged_in">logged_in</option>
+              <option value="created_product">created_product</option>
+              <option value="updated_product">updated_product</option>
               <option value="created_admin">created_admin</option>
               <option value="activated_admin">activated_admin</option>
               <option value="deactivated_admin">deactivated_admin</option>
@@ -142,7 +145,7 @@ const ActivityLogsPage = () => {
               <option value="">All Operators</option>
               {actorsList.map((actor) => (
                 <option key={actor.id} value={actor.id}>
-                  {actor.name || actor.email}
+                  {actor.name || actor.email?.replace(/\+(admin|superadmin)@/, '@')}
                 </option>
               ))}
             </select>
@@ -206,7 +209,7 @@ const ActivityLogsPage = () => {
                         </td>
                         <td className="py-4 px-6">
                           <span className="text-slate-105 font-bold block">{log.profile?.name || 'System Actor'}</span>
-                          <span className="text-[10px] text-slate-500 block font-normal">{log.profile?.email || 'automated@soshka.com'}</span>
+                          <span className="text-[10px] text-slate-500 block font-normal">{log.profile?.email?.replace(/\+(admin|superadmin)@/, '@') || 'automated@soshka.com'}</span>
                         </td>
                         <td className="py-4 px-6">
                           <span className="px-2 py-0.5 rounded bg-slate-950 text-pink-400 text-[10px] uppercase font-bold font-mono border border-[#ff2a85]/10">

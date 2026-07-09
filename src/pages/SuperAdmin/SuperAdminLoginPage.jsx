@@ -5,6 +5,7 @@ import { ShieldAlert, Crown, UserPlus, Mail, RefreshCw, Eye, EyeOff, KeyRound } 
 import Button from '../../components/Reusable/Button';
 import { showToast } from '../../components/Reusable/Toast';
 import { supabase } from '../../lib/supabaseClient';
+import { adminLogService } from '../../services/adminLogService';
 
 const SuperAdminLoginPage = () => {
   const { user, profile, login, logout, loading, clearError } = useAuth();
@@ -28,8 +29,12 @@ const SuperAdminLoginPage = () => {
   const from = location.state?.from?.pathname || '/superadmin/dashboard';
 
   useEffect(() => {
-    if (user && profile?.role === 'superadmin' && profile?.is_active !== false) {
-      navigate(from, { replace: true });
+    if (user && profile?.is_active !== false) {
+      if (profile?.role === 'superadmin') {
+        navigate(from, { replace: true });
+      } else if (profile?.role === 'admin') {
+        navigate('/admin/dashboard', { replace: true });
+      }
     }
   }, [user, profile, navigate, from]);
 
@@ -48,9 +53,14 @@ const SuperAdminLoginPage = () => {
     if (!email || resendLoading || resendCooldown > 0) return;
     setResendLoading(true);
     try {
+      let resendEmail = email.trim();
+      if (!resendEmail.includes('+superadmin')) {
+        const parts = resendEmail.split('@');
+        resendEmail = `${parts[0]}+superadmin@${parts[1]}`;
+      }
       const { error } = await supabase.auth.resend({
         type: 'signup',
-        email: email.trim(),
+        email: resendEmail,
         options: { emailRedirectTo: `${window.location.origin}/superadmin/login` }
       });
       if (error) throw error;
@@ -71,7 +81,12 @@ const SuperAdminLoginPage = () => {
     }
     setResetLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
+      let transformedEmail = resetEmail.trim();
+      if (!transformedEmail.includes('+superadmin')) {
+        const parts = transformedEmail.split('@');
+        transformedEmail = `${parts[0]}+superadmin@${parts[1]}`;
+      }
+      const { error } = await supabase.auth.resetPasswordForEmail(transformedEmail, {
         redirectTo: `${window.location.origin}/superadmin/login`
       });
       if (error) throw error;
@@ -94,53 +109,94 @@ const SuperAdminLoginPage = () => {
       return;
     }
 
+    const baseEmail = email.trim();
+    let loginEmail = baseEmail;
+    if (!loginEmail.includes('+superadmin')) {
+      const parts = loginEmail.split('@');
+      loginEmail = `${parts[0]}+superadmin@${parts[1]}`;
+    }
+
+    let data;
     try {
-      const data = await login(email.trim(), password);
-      if (data.user) {
-        let profileData = null;
-        try {
-          const { data: pData, error: pErr } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', data.user.id)
-            .single();
-          if (!pErr) profileData = pData;
-          else console.warn('Profile fetch error:', pErr.message);
-        } catch (err) {
-          console.error('Error fetching super admin profile:', err);
-        }
-
-        const isSuperAdminUser = profileData?.role === 'superadmin';
-        const isActive = profileData?.is_active !== false;
-
-        if (isSuperAdminUser && isActive) {
-          showToast('Welcome, Super Administrator!', 'success');
-          navigate(from, { replace: true });
-        } else if (profileData && !isActive) {
-          await logout();
-          setSubmitError('Access Denied: Your account has been suspended or deactivated.');
-          showToast('Account Suspended', 'error');
-        } else if (profileData && !isSuperAdminUser) {
-          await logout();
-          setSubmitError('Access Denied: You do not have super administrator privileges.');
-          showToast('Access Denied', 'error');
-        } else {
-          await logout();
-          setSubmitError(
-            'Login failed: user profile not found. Please ensure the database schema is up to date, or contact support.'
-          );
-        }
-      }
+      // First try logging in with +superadmin suffix
+      data = await login(loginEmail, password);
     } catch (err) {
+      // If +superadmin login fails and original email did not have +superadmin, try base email
       const msg = err.message || '';
-      if (msg.toLowerCase().includes('email not confirmed') || msg.toLowerCase().includes('not confirmed')) {
+      const isEmailVerificationError = msg.toLowerCase().includes('email not confirmed') || msg.toLowerCase().includes('not confirmed');
+      
+      if (isEmailVerificationError) {
         setEmailNotConfirmed(true);
         setSubmitError('');
-      } else if (msg.toLowerCase().includes('invalid login') || msg.toLowerCase().includes('invalid credentials')) {
-        setSubmitError('Incorrect email or password. Please try again.');
-        setShowForgotPassword(false);
+        return;
+      }
+
+      if (!baseEmail.includes('+superadmin')) {
+        try {
+          data = await login(baseEmail, password);
+        } catch (fallbackErr) {
+          const fallbackMsg = fallbackErr.message || '';
+          if (fallbackMsg.toLowerCase().includes('email not confirmed') || fallbackMsg.toLowerCase().includes('not confirmed')) {
+            setEmailNotConfirmed(true);
+            setSubmitError('');
+          } else if (fallbackMsg.toLowerCase().includes('invalid login') || fallbackMsg.toLowerCase().includes('invalid credentials')) {
+            setSubmitError('Incorrect email or password. Please try again.');
+            setShowForgotPassword(false);
+          } else {
+            setSubmitError(fallbackMsg || 'Login failed. Please check your credentials.');
+          }
+          return;
+        }
       } else {
-        setSubmitError(msg || 'Login failed. Please check your credentials.');
+        if (msg.toLowerCase().includes('invalid login') || msg.toLowerCase().includes('invalid credentials')) {
+          setSubmitError('Incorrect email or password. Please try again.');
+          setShowForgotPassword(false);
+        } else {
+          setSubmitError(msg || 'Login failed. Please check your credentials.');
+        }
+        return;
+      }
+    }
+
+    if (data && data.user) {
+      let profileData = null;
+      try {
+        const { data: pData, error: pErr } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+        if (!pErr) profileData = pData;
+        else console.warn('Profile fetch error:', pErr.message);
+      } catch (err) {
+        console.error('Error fetching super admin profile:', err);
+      }
+
+      const isSuperAdminUser = profileData?.role === 'superadmin';
+      const isAdminUser = profileData?.role === 'admin';
+      const isActive = profileData?.is_active !== false;
+
+      if (isSuperAdminUser && isActive) {
+        showToast('Welcome, Super Administrator!', 'success');
+        await adminLogService.logAction('logged_in', 'profiles', data.user.id, { email: baseEmail, role: 'superadmin' });
+        navigate(from, { replace: true });
+      } else if (isAdminUser && isActive) {
+        showToast('Welcome back, Administrator! Redirecting to Admin Portal...', 'success');
+        await adminLogService.logAction('logged_in', 'profiles', data.user.id, { email: baseEmail, role: 'admin' });
+        navigate('/admin/dashboard', { replace: true });
+      } else if (profileData && !isActive) {
+        await logout();
+        setSubmitError('Access Denied: Your account has been suspended or deactivated.');
+        showToast('Account Suspended', 'error');
+      } else if (profileData && !isSuperAdminUser && !isAdminUser) {
+        await logout();
+        setSubmitError('Access Denied: You do not have administrator privileges.');
+        showToast('Access Denied', 'error');
+      } else {
+        await logout();
+        setSubmitError(
+          'Login failed: user profile not found. Please ensure the database schema is up to date, or contact support.'
+        );
       }
     }
   };
@@ -338,17 +394,7 @@ const SuperAdminLoginPage = () => {
           </Button>
         </form>
 
-        {/* Register Super Admin link */}
-        <div className="border-t border-slate-800/80 pt-5 text-center space-y-3">
-          <p className="text-xs text-slate-500">No super admin account yet?</p>
-          <Link
-            to="/superadmin/signup"
-            className="inline-flex items-center justify-center gap-2 w-full px-4 py-3 rounded-2xl bg-white/5 hover:bg-[#ff2a85]/10 border border-white/[0.08] hover:border-[#ff2a85]/30 text-xs font-extrabold text-slate-300 hover:text-white transition-all duration-300 group"
-          >
-            <UserPlus size={14} className="text-[#ff2a85] group-hover:scale-110 transition-transform" />
-            Register Super Admin Account
-          </Link>
-        </div>
+
 
       </div>
     </div>

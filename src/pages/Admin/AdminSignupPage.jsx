@@ -46,8 +46,14 @@ const AdminSignupPage = () => {
       return;
     }
 
+    let signupEmail = email.trim();
+    if (!signupEmail.includes('+admin')) {
+      const parts = signupEmail.split('@');
+      signupEmail = `${parts[0]}+admin@${parts[1]}`;
+    }
+
     try {
-      await register(email, password, name, 'admin');
+      await register(signupEmail, password, name, 'admin');
       showToast('Admin account created successfully!', 'success');
       navigate('/admin/login');
     } catch (err) {

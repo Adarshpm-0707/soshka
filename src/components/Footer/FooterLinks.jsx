@@ -50,16 +50,20 @@ const FooterLinks = () => {
         { label: 'About Us', path: '/about' },
         { label: 'Reviews', path: '/reviews' },
         { label: 'Contact Us', path: '/contact' },
-
+        { label: 'Login', path: '/login' },
+        { label: 'Register', path: '/register' }
       ]
     },
     {
       title: 'Customer Support',
       links: [
-
-        { label: 'Shipping & Delivery', path: '/about' },
         { label: 'Returns & Refund', path: '/returns-refunds' },
-        { label: 'Order Tracking', path: '/orders' },
+        { label: 'Refund Policy', path: '/refund-policy' },
+        { label: 'Privacy Policy', path: '/privacy-policy' },
+        { label: 'Shipping Policy', path: '/shipping-policy' },
+        { label: 'Terms & Conditions', path: '/terms' },
+        { label: 'Editorial Policy', path: '/terms#editorial-policy' },
+        { label: 'Shopping Cart', path: '/cart' }
       ]
     }
   ];
@@ -68,9 +72,9 @@ const FooterLinks = () => {
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-8 md:gap-12">
       {sections.map((section) => (
         <div key={section.title} className="flex flex-col space-y-3">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white font-sans">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white font-sans">
             {section.title}
-          </h4>
+          </h3>
           <ul className="space-y-2">
             {section.links.map((link) => (
               <li key={link.label}>

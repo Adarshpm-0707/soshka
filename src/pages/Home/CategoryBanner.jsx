@@ -1,11 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { supabase } from '../../lib/supabaseClient';
 import SectionTitle from '../../components/Reusable/SectionTitle';
-
-gsap.registerPlugin(ScrollTrigger);
 
 const CategoryBanner = () => {
   const containerRef = useRef(null);
@@ -53,68 +49,82 @@ const CategoryBanner = () => {
   }, []);
 
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+    if (categories.length === 0) return;
 
-    const containers = container.querySelectorAll('.category-marquee-container');
-    const tweens = [];
+    let active = true;
+    let tweens = [];
 
-    containers.forEach((item, index) => {
-      const marquee = item.querySelector('.category-marquee');
-      const title = marquee.querySelector('.item-title');
+    // Dynamically load GSAP and ScrollTrigger to optimize page performance
+    Promise.all([
+      import('gsap'),
+      import('gsap/ScrollTrigger')
+    ]).then(([{ default: gsap }, { ScrollTrigger }]) => {
+      if (!active) return;
       
-      const isEven = index % 2 === 0;
-      const startX = isEven ? '0%' : '-15%';
-      const endX = isEven ? '12%' : '-27%';
+      gsap.registerPlugin(ScrollTrigger);
 
-      // 1. Horizontal scroll slide animation matching index parity directions
-      const marqueeTween = gsap.fromTo(
-        marquee,
-        { x: startX },
-        {
-          x: endX,
-          ease: 'none',
-          scrollTrigger: {
-            trigger: item,
-            start: 'top bottom',
-            end: 'bottom top',
-            scrub: true,
-          },
-        }
-      );
-      tweens.push(marqueeTween);
+      const container = containerRef.current;
+      if (!container) return;
 
-      // 2. Character font-weight animation on scroll
-      if (title) {
-        const chars = title.querySelectorAll('.category-char');
-        const reverse = !isEven;
-        const staggerOptions = {
-          each: 0.35,
-          from: reverse ? 'start' : 'end',
-          ease: 'linear',
-        };
+      const containers = container.querySelectorAll('.category-marquee-container');
 
-        const charTween = gsap.fromTo(
-          chars,
-          { fontWeight: 100 },
+      containers.forEach((item, index) => {
+        const marquee = item.querySelector('.category-marquee');
+        const title = marquee.querySelector('.item-title');
+        
+        const isEven = index % 2 === 0;
+        const startX = isEven ? '0%' : '-15%';
+        const endX = isEven ? '12%' : '-27%';
+
+        // 1. Horizontal scroll slide animation matching index parity directions
+        const marqueeTween = gsap.fromTo(
+          marquee,
+          { x: startX },
           {
-            fontWeight: 900,
+            x: endX,
             ease: 'none',
-            stagger: staggerOptions,
             scrollTrigger: {
               trigger: item,
-              start: '50% bottom',
-              end: 'top top',
+              start: 'top bottom',
+              end: 'bottom top',
               scrub: true,
             },
           }
         );
-        tweens.push(charTween);
-      }
+        tweens.push(marqueeTween);
+
+        // 2. Character font-weight animation on scroll
+        if (title) {
+          const chars = title.querySelectorAll('.category-char');
+          const reverse = !isEven;
+          const staggerOptions = {
+            each: 0.35,
+            from: reverse ? 'start' : 'end',
+            ease: 'linear',
+          };
+
+          const charTween = gsap.fromTo(
+            chars,
+            { fontWeight: 100 },
+            {
+              fontWeight: 900,
+              ease: 'none',
+              stagger: staggerOptions,
+              scrollTrigger: {
+                trigger: item,
+                start: '50% bottom',
+                end: 'top top',
+                scrub: true,
+              },
+            }
+          );
+          tweens.push(charTween);
+        }
+      });
     });
 
-    // Cleanup tweens and ScrollTriggers
     return () => {
+      active = false;
       tweens.forEach((tween) => {
         tween.scrollTrigger?.kill();
         tween.kill();
@@ -158,15 +168,15 @@ const CategoryBanner = () => {
                 </div>
                 
                 {/* Item 2: Text Title (Double-width column) */}
-                <div className="category-marquee-item with-text w-96 sm:w-[28rem] lg:w-[32rem] h-full flex-shrink-0">
+                <div className="category-marquee-item with-text w-56 sm:w-[28rem] lg:w-[32rem] h-full flex-shrink-0">
                   <Link to={`/products?category=${cat.name}`} className="block">
-                    <h1 className="item-title select-none">
+                    <span className="item-title select-none block">
                       {cat.name.split('').map((char, charIdx) => (
                         <span key={charIdx} className="category-char inline-block" style={{ fontWeight: 100 }}>
                           {char === ' ' ? '\u00A0' : char}
                         </span>
                       ))}
-                    </h1>
+                    </span>
                   </Link>
                 </div>
                 
