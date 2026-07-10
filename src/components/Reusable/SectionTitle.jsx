@@ -1,6 +1,6 @@
 import React from 'react';
 
-const SectionTitle = ({ title, subtitle, align = 'center', className = '' }) => {
+const SectionTitle = ({ title, subtitle, align = 'center', className = '', titleClassName = '' }) => {
   const alignment = {
     left: 'text-left items-start',
     center: 'text-center items-center',
@@ -9,7 +9,7 @@ const SectionTitle = ({ title, subtitle, align = 'center', className = '' }) => 
 
   return (
     <div className={`flex flex-col mb-10 ${alignment[align]} ${className}`}>
-      <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-950 dark:text-slate-50 font-sans">
+      <h2 className={`text-2xl md:text-3xl font-extrabold tracking-tight text-slate-950 dark:text-slate-50 ${titleClassName || 'font-sans'}`}>
         {title}
       </h2>
       <div className="h-1 w-12 bg-primary-600 rounded mt-3.5" />

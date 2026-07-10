@@ -1,12 +1,9 @@
 @font-face {
   font-family: "TT Drugs";
   src:
-    url("https://db.onlinewebfonts.com/t/790e1917fcd40124556e3dfbfffa3562.woff2")
-      format("woff2"),
-    url("https://db.onlinewebfonts.com/t/790e1917fcd40124556e3dfbfffa3562.woff")
-      format("woff"),
-    url("https://db.onlinewebfonts.com/t/790e1917fcd40124556e3dfbfffa3562.ttf")
-      format("truetype");
+    url("/fonts/tt-drugs.woff2") format("woff2"),
+    url("/fonts/tt-drugs.woff") format("woff"),
+    url("/fonts/tt-drugs.ttf") format("truetype");
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;
@@ -18,6 +15,8 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 @layer base {
@@ -25,6 +24,8 @@ html {
     font-family: "Plus Jakarta Sans", sans-serif;
     @apply antialiased selection:bg-primary-500/25;
     -webkit-overflow-scrolling: touch;
+    overflow-x: hidden;
+    max-width: 100%;
   }
 }
 
@@ -153,8 +154,8 @@ html {
 
 /* SEMANTIC SEO H1 HEADER */
 .hero__top h1 {
-  font-size: clamp(18px, 3.2vw, 36px);
-  font-weight: 800;
+  font-size: clamp(1px, 3.2vw, 25px);
+  font-weight: 300;
   line-height: 1.2;
   letter-spacing: 2px;
   margin: 15px 0 0 0;
@@ -280,6 +281,13 @@ html {
 }
 
 /* ================= CATEGORIES MARQUEES ================= */
+.category-section-title {
+  font-family: "TT Drugs", sans-serif !important;
+  font-size: clamp(32px, 5vw, 48px) !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.5px !important;
+}
+
 .marquees-section {
   display: flex;
   flex-direction: column;
@@ -323,17 +331,29 @@ html {
   align-items: center;
   border-radius: 2rem;
   overflow: hidden;
+  border: 1px solid rgba(229, 196, 206, 0.2);
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dark .category-marquee-item {
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .category-marquee-item img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.5s ease;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.category-marquee-item:hover {
+  border-color: #ff2a85;
+  box-shadow: 0 12px 35px -10px rgba(255, 42, 133, 0.25);
+  transform: translateY(-4px);
 }
 
 .category-marquee-item:hover img {
-  transform: scale(1.06);
+  transform: scale(1.08);
 }
 
 .category-marquee-item.with-text {
@@ -344,11 +364,11 @@ html {
   align-items: center;
 }
 
-.category-marquee-item.with-text h1 {
-  font-size: clamp(28px, 8vw, 130px);
+.category-marquee-item.with-text .item-title {
+  font-size: clamp(90px, 3.5vw, 18px);
   text-transform: uppercase;
   color: #ffffff;
-  font-family: "TT Drugs", sans-serif;
+  font-family: "TT Drugs";
   letter-spacing: 2px;
   white-space: nowrap;
   user-select: none;
@@ -356,7 +376,7 @@ html {
   transition: color 0.3s ease;
 }
 
-.category-marquee-item.with-text h1:hover {
+.category-marquee-item.with-text .item-title:hover {
   color: #ff2a85;
 }
 

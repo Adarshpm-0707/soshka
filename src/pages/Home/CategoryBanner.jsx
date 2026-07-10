@@ -139,6 +139,7 @@ const CategoryBanner = () => {
         <SectionTitle
           title="Browse By Category"
           subtitle="Explore our comprehensive collection categorised logically for easier shopping experience."
+          titleClassName="category-section-title"
         />
       </div>
 

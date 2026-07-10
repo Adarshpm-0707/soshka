@@ -151,6 +151,16 @@ const HeroSection = () => {
           transparent: true,
         });
 
+        const mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
+
+        let scrollProgress = 0;
+
+        function render() {
+          material.uniforms.uProgress.value = scrollProgress;
+          renderer.render(scene, camera);
+        }
+
         // Observe theme toggles and transition WebGL shader color smoothly with GSAP
         const observer = new MutationObserver(() => {
           const darkNow = document.documentElement.classList.contains('dark');
@@ -165,6 +175,7 @@ const HeroSection = () => {
               z: nextRgb.b,
               duration: 0.5,
               ease: 'power2.out',
+              onUpdate: render,
             });
           }
         });
@@ -174,12 +185,6 @@ const HeroSection = () => {
           attributeFilter: ['class'],
         });
 
-        const mesh = new THREE.Mesh(geometry, material);
-        scene.add(mesh);
-
-        let scrollProgress = 0;
-        let animId;
-
         function resize() {
           if (!hero || !renderer) return;
           const width = hero.offsetWidth || window.innerWidth;
@@ -187,23 +192,18 @@ const HeroSection = () => {
           renderer.setSize(width, height);
           renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
           material.uniforms.uResolution.value.set(width, height);
+          render();
         }
 
         resize();
         window.addEventListener('resize', resize);
-
-        function animate() {
-          material.uniforms.uProgress.value = scrollProgress;
-          renderer.render(scene, camera);
-          animId = requestAnimationFrame(animate);
-        }
-        animate();
 
         // 3. Scroll listener to drive shader progress relative to page scroll
         const onScroll = (scrollVal) => {
           const heroHeight = hero.offsetHeight;
           if (heroHeight > 0) {
             scrollProgress = Math.min((scrollVal / heroHeight) * CONFIG.speed, 1.1);
+            render();
           }
         };
 
@@ -217,11 +217,13 @@ const HeroSection = () => {
           window.addEventListener('scroll', handleNativeScroll, { passive: true });
         }
 
+        // Initial render call
+        render();
+
         // Define cleanup handler inside then scope
         cleanupFn = () => {
           observer.disconnect();
           cancelAnimationFrame(rafId);
-          cancelAnimationFrame(animId);
           if (lenis) lenis.destroy();
           if (handleNativeScroll) {
             window.removeEventListener('scroll', handleNativeScroll);
@@ -249,8 +251,8 @@ const HeroSection = () => {
         {/* Brand Text Overlay */}
         <div className="hero__top">
           <div className="hero-brand-title select-none">Sõshka</div>
-          <h1>Premium Women's & Kids' Jewellery Online</h1>
-          <p>Premium Handpicked Essentials</p>
+          <h1>Premium Handpicked Essentials</h1>
+      
         </div>
 
         {/* Parallax backgrounds and WebGL canvas overlay */}
