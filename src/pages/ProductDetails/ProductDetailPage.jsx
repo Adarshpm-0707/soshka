@@ -296,16 +296,20 @@ const ProductDetailPage = () => {
         {/* Right Column: Information details */}
         <div className="flex flex-col space-y-6">
           <div className="space-y-3">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary-50 dark:bg-primary-950/20 text-[#ff2a85] text-[10px] font-black uppercase tracking-widest rounded-full leading-none">
-              <Sparkles size={10} />
-              {product.category}
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary-50 dark:bg-primary-950/20 text-[#ff2a85] text-[10px] font-black uppercase tracking-widest rounded-full leading-none">
+                <Sparkles size={10} />
+                {product.category}
+              </span>
+              {product.is_best_seller && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-amber-500 text-white text-[10px] font-black uppercase tracking-widest rounded-full leading-none shadow-sm">
+                  🔥 Best Seller
+                </span>
+              )}
+            </div>
             <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight" style={{ fontFamily: "'TT Drugs', sans-serif" }}>
               {product.name}
             </h1>
-            <span className="text-[10px] sm:text-xs font-mono font-bold text-slate-450 dark:text-slate-500 block">
-              SKU: {product.sku || `SS-${product.id.slice(0, 8).toUpperCase()}`}
-            </span>
           </div>
 
           {/* Premium Pricing Card */}

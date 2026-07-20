@@ -31,6 +31,7 @@ const AdminEditProductPage = () => {
   const [discountPercent, setDiscountPercent] = useState('');
   const [sizes, setSizes] = useState([]);
   const [availableSizes, setAvailableSizes] = useState(['XS', 'S', 'M', 'L', 'XL']);
+  const [isBestSeller, setIsBestSeller] = useState(false);
 
   const handleSizeToggle = (size) => {
     setSizes(prev =>
@@ -131,6 +132,7 @@ const AdminEditProductPage = () => {
           setSku(prodData.sku ?? '');
           const loadedSizes = prodData.sizes || [];
           setSizes(loadedSizes);
+          setIsBestSeller(prodData.is_best_seller || false);
           setAvailableSizes(prev => {
             const merged = [...prev];
             loadedSizes.forEach(s => {
@@ -244,6 +246,7 @@ const AdminEditProductPage = () => {
           images, // exactly 3 slots
           sku,
           sizes,
+          is_best_seller: isBestSeller,
         })
         .eq('id', id);
 
@@ -445,6 +448,20 @@ const AdminEditProductPage = () => {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div className="flex items-center space-x-2.5 pt-2">
+                <input
+                  type="checkbox"
+                  id="isBestSeller"
+                  checked={isBestSeller}
+                  onChange={(e) => setIsBestSeller(e.target.checked)}
+                  disabled={loading}
+                  className="h-4 w-4 rounded border-slate-300 dark:border-slate-700 text-[#ff2a85] focus:ring-[#ff2a85] dark:bg-slate-855 cursor-pointer"
+                />
+                <label htmlFor="isBestSeller" className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 cursor-pointer">
+                  Mark as Best Seller
+                </label>
               </div>
             </div>
           </div>

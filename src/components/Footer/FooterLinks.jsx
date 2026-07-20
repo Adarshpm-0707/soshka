@@ -63,7 +63,8 @@ const FooterLinks = () => {
         { label: 'Shipping Policy', path: '/shipping-policy' },
         { label: 'Terms & Conditions', path: '/terms' },
         { label: 'Editorial Policy', path: '/terms#editorial-policy' },
-        { label: 'Shopping Cart', path: '/cart' }
+        { label: 'Shopping Cart', path: '/cart' },
+        { label: 'Order Tracking', path: 'https://soshka.shiprocket.co', isExternal: true }
       ]
     }
   ];
@@ -78,12 +79,23 @@ const FooterLinks = () => {
           <ul className="space-y-2">
             {section.links.map((link) => (
               <li key={link.label}>
-                <Link
-                  to={link.path}
-                  className="text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 transition"
-                >
-                  {link.label}
-                </Link>
+                {link.isExternal ? (
+                  <a
+                    href={link.path}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 transition"
+                  >
+                    {link.label}
+                  </a>
+                ) : (
+                  <Link
+                    to={link.path}
+                    className="text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 transition"
+                  >
+                    {link.label}
+                  </Link>
+                )}
               </li>
             ))}
           </ul>

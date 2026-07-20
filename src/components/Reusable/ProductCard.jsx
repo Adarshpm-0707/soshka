@@ -93,12 +93,19 @@ const ProductCard = ({ product }) => {
           />
         </button>
 
-        {/* Sale badge */}
-        {isOfferActive && (
-          <span className="absolute top-3 left-3 px-2.5 py-1 bg-[#98183f] dark:bg-[#ff2a85] text-white text-[9px] font-extrabold rounded-lg uppercase tracking-wider shadow-sm max-w-[80%] truncate" title={offer?.message || 'Offer'}>
-            {offer?.message || `${Math.round(((originalPrice - offerPrice) / originalPrice) * 100)}% OFF`}
-          </span>
-        )}
+        {/* Badges container */}
+        <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10 max-w-[70%]">
+          {product.is_best_seller && (
+            <span className="px-2.5 py-1 bg-amber-500 text-white text-[9px] font-extrabold rounded-lg uppercase tracking-wider shadow-sm truncate" title="Best Seller">
+              🔥 Best Seller
+            </span>
+          )}
+          {isOfferActive && (
+            <span className="px-2.5 py-1 bg-[#98183f] dark:bg-[#ff2a85] text-white text-[9px] font-extrabold rounded-lg uppercase tracking-wider shadow-sm truncate" title={offer?.message || 'Offer'}>
+              {offer?.message || `${Math.round(((originalPrice - offerPrice) / originalPrice) * 100)}% OFF`}
+            </span>
+          )}
+        </div>
       </Link>
 
       {/* ── Card Details ── */}
@@ -119,36 +126,36 @@ const ProductCard = ({ product }) => {
 
 
         {/* Price + Add to Cart — pushed to bottom */}
-        <div className="mt-auto pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+        <div className="mt-auto pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-2.5">
 
           {/* Price block */}
-          <div className="flex flex-col min-w-0 h-[46px] sm:h-[50px] justify-end">
-            {isOfferActive ? (
-              <>
-                <span className="text-[10px] text-slate-400 line-through leading-none mb-0.5">
+          <div className="flex flex-col gap-0.5">
+            <div className="flex flex-wrap items-baseline gap-1.5">
+              {isOfferActive ? (
+                <>
+                  <span className="text-base sm:text-lg font-extrabold text-[#98183f] dark:text-[#ff2a85] leading-tight">
+                    {formatCurrency(offerPrice)}
+                  </span>
+                  <span className="text-[11px] sm:text-xs text-slate-400 line-through leading-none">
+                    {formatCurrency(originalPrice)}
+                  </span>
+                  <span className="text-[10px] sm:text-xs font-bold text-green-600 dark:text-green-400">
+                    {Math.round(((originalPrice - offerPrice) / originalPrice) * 100)}% OFF
+                  </span>
+                </>
+              ) : (
+                <span className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white leading-tight">
                   {formatCurrency(originalPrice)}
                 </span>
-                <span className="text-sm sm:text-base font-extrabold text-[#98183f] dark:text-[#ff2a85] leading-tight truncate">
-                  {formatCurrency(offerPrice)}
-                </span>
-              </>
-            ) : (
-              <>
-                <span className="text-[10px] text-transparent leading-none mb-0.5 select-none" aria-hidden="true">
-                  &nbsp;
-                </span>
-                <span className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-tight truncate">
-                  {formatCurrency(originalPrice)}
-                </span>
-              </>
-            )}
-            <span className="text-[8px] sm:text-[9px] text-slate-400 dark:text-slate-500 font-bold mt-1 block leading-none">
+              )}
+            </div>
+            <span className="text-[8px] sm:text-[9px] text-slate-400 dark:text-slate-500 font-bold leading-none">
               incl. GST
             </span>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1.5 w-full">
             {/* Add to Cart Icon-Button */}
             <button
               onClick={handleAddToCart}
@@ -165,7 +172,7 @@ const ProductCard = ({ product }) => {
             <button
               onClick={handleBuyNow}
               disabled={product.stock === 0}
-              className="px-2.5 sm:px-3.5 py-2 rounded-xl text-[10px] sm:text-xs font-black text-white bg-[#98183f] hover:bg-[#7a1232] dark:bg-[#ff2a85] dark:hover:bg-[#e01f72] dark:hover:shadow-[0_0_15px_rgba(255,42,133,0.3)] disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-400 transition-all duration-200 shrink-0"
+              className="flex-1 py-2 rounded-xl text-[10px] sm:text-xs font-black text-white bg-[#98183f] hover:bg-[#7a1232] dark:bg-[#ff2a85] dark:hover:bg-[#e01f72] dark:hover:shadow-[0_0_15px_rgba(255,42,133,0.3)] disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-400 transition-all duration-200 text-center"
             >
               Buy Now
             </button>

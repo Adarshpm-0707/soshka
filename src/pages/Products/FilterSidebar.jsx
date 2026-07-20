@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { Star, RotateCcw } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 
 const FilterSidebar = ({ filters, onFilterChange, onReset }) => {
   const [categories, setCategories] = useState([]);
@@ -30,10 +30,6 @@ const FilterSidebar = ({ filters, onFilterChange, onReset }) => {
     onFilterChange({ [field]: val });
   };
 
-  const handleRatingSelect = (rating) => {
-    onFilterChange({ rating: filters.rating === rating ? 0 : rating });
-  };
-
   const handleSortChange = (e) => {
     onFilterChange({ sortBy: e.target.value });
   };
@@ -44,7 +40,7 @@ const FilterSidebar = ({ filters, onFilterChange, onReset }) => {
         <h3 className="font-bold text-slate-800 dark:text-slate-100 font-sans tracking-wide">Filters</h3>
         <button
           onClick={onReset}
-          className="text-xs font-bold text-slate-400 dark:text-slate-500 hover:text-red-500 flex items-center space-x-1 transition"
+          className="text-xs font-bold text-slate-400 dark:text-slate-550 hover:text-red-500 flex items-center space-x-1 transition"
         >
           <RotateCcw size={12} />
           <span>Reset</span>
@@ -64,7 +60,6 @@ const FilterSidebar = ({ filters, onFilterChange, onReset }) => {
           <option value="newest">Newest Arrivals</option>
           <option value="price-low-high">Price: Low to High</option>
           <option value="price-high-low">Price: High to Low</option>
-          <option value="rating">Average Rating</option>
         </select>
       </div>
 
@@ -76,7 +71,7 @@ const FilterSidebar = ({ filters, onFilterChange, onReset }) => {
         <div className="flex flex-col space-y-1.5">
           <button
             onClick={() => handleCategorySelect('all')}
-            className={`text-left text-sm px-3 py-1.5.5 rounded-lg transition font-semibold ${
+            className={`text-left text-sm px-3 py-1.5 rounded-lg transition font-semibold ${
               !filters.category || filters.category === 'all'
                 ? 'bg-primary-50 dark:bg-primary-950/20 text-primary-600 dark:text-primary-400 font-bold'
                 : 'text-slate-600 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800'
@@ -121,38 +116,6 @@ const FilterSidebar = ({ filters, onFilterChange, onReset }) => {
             onChange={(e) => handlePriceChange(e, 'maxPrice')}
             className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-250 dark:border-slate-700/80 rounded-xl text-xs font-semibold focus:outline-none focus:border-primary-500"
           />
-        </div>
-      </div>
-
-      {/* Rating Section */}
-      <div className="space-y-2.5">
-        <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-          Customer Rating
-        </span>
-        <div className="flex flex-col space-y-1">
-          {[4, 3, 2].map((stars) => (
-            <button
-              key={stars}
-              onClick={() => handleRatingSelect(stars)}
-              className={`flex items-center space-x-2 text-left text-sm px-3 py-1.5 rounded-lg transition font-semibold ${
-                filters.rating === stars
-                  ? 'bg-primary-50 dark:bg-primary-950/20 text-primary-600 dark:text-primary-400 font-bold'
-                  : 'text-slate-655 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800'
-              }`}
-            >
-              <div className="flex text-amber-400">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star
-                    key={i}
-                    size={14}
-                    fill={i < stars ? 'currentColor' : 'none'}
-                    className={i < stars ? 'text-amber-400' : 'text-slate-300 dark:text-slate-600'}
-                  />
-                ))}
-              </div>
-              <span>& Up</span>
-            </button>
-          ))}
         </div>
       </div>
     </div>
