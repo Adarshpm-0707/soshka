@@ -4,6 +4,7 @@ import { Search, Loader2, Package, Calendar, User, CreditCard, ChevronRight, X, 
 import { formatCurrency } from '../../utils/formatCurrency';
 import { showToast } from '../../components/Reusable/Toast';
 import { adminLogService } from '../../services/adminLogService';
+import { shiprocketService } from '../../services/shiprocketService';
 
 const AdminOrdersPage = () => {
   const [orders, setOrders] = useState([]);
@@ -42,25 +43,9 @@ const AdminOrdersPage = () => {
       if (isEligible && !autoDispatchedRef.current.has(order.id)) {
         autoDispatchedRef.current.add(order.id);
         console.log(`[Auto-Shiprocket] Auto-dispatching new incoming order ${order.id}...`);
-        fetch('/api/shiprocket-pickup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            order,
-            email: order.profile?.email || order.shipping_address?.email || 'customer@soshka.in'
-          })
-        })
+        shiprocketService.dispatchOrder(order)
           .then(async (res) => {
-            const contentType = res.headers.get('content-type') || '';
-            let data = {};
-            if (contentType.includes('application/json')) {
-              data = await res.json().catch(() => ({}));
-            } else {
-              const text = await res.text().catch(() => '');
-              data = { error: `Server response: ${text.slice(0, 80) || res.statusText}` };
-            }
-
-            if (res.ok && data.success) {
+            if (res && res.success) {
               console.log(`[Auto-Shiprocket] Successfully dispatched order ${order.id}`);
               showToast(`🚚 Order #${order.id.startsWith('00000000-0000-0000-0000-') ? order.id.split('-').pop() : order.id.slice(0, 8).toUpperCase()} auto-dispatched to Shiprocket!`, 'success');
               const { data: updatedData } = await supabase
@@ -68,8 +53,6 @@ const AdminOrdersPage = () => {
                 .select('*, profile:profiles(email, name)')
                 .order('created_at', { ascending: false });
               if (updatedData) setOrders(updatedData);
-            } else {
-              console.warn(`[Auto-Shiprocket Warning] Order ${order.id}:`, data.error || 'Dispatch warning');
             }
           })
           .catch((err) => console.warn(`[Auto-Shiprocket Error] Order ${order.id}:`, err));
@@ -637,36 +620,19 @@ const AdminOrdersPage = () => {
                         onClick={async () => {
                           try {
                             showToast('Connecting to Shiprocket...', 'info');
-                            const res = await fetch('/api/shiprocket-pickup', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({
-                                order: selectedOrder,
-                                email: selectedOrder.profile?.email || selectedOrder.shipping_address?.email || 'customer@soshka.in'
-                              })
-                            });
-                            const contentType = res.headers.get('content-type') || '';
-                            let data = {};
-                            if (contentType.includes('application/json')) {
-                              data = await res.json().catch(() => ({}));
-                            } else {
-                              const text = await res.text().catch(() => '');
-                              throw new Error(`Server returned unexpected response (${res.status}): ${text.slice(0, 100) || res.statusText}`);
-                            }
-                            if (res.ok && data.success) {
-                              if (data.warning) {
-                                showToast(`Order created in Shiprocket! ⚠️ ${data.warning}`, 'warning');
+                            const res = await shiprocketService.dispatchOrder(selectedOrder);
+                            if (res.success) {
+                              if (res.warning) {
+                                showToast(`Order created in Shiprocket! ⚠️ ${res.warning}`, 'warning');
                               } else {
                                 showToast('Shiprocket pickup scheduled successfully! 🚚', 'success');
                               }
                               setSelectedOrder(prev => ({
                                 ...prev,
-                                shiprocket_shipment_id: data.shipment_id,
-                                shiprocket_awb: data.awb_code
+                                shiprocket_shipment_id: res.shipment_id,
+                                shiprocket_awb: res.awb_code
                               }));
                               fetchOrders();
-                            } else {
-                              throw new Error(data.error || 'Failed to connect to Shiprocket');
                             }
                           } catch (err) {
                             console.error('Shiprocket error:', err);
