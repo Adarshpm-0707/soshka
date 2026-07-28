@@ -77,10 +77,11 @@ const PaymentPage = () => {
   // ─── Post-payment success actions ────────────────────────────────────────
   const handlePostPaymentSuccess = async (dbOrderId) => {
     try {
-      // 1. If coupon was applied, log coupon_usage and increment count
-      if (appliedCoupon && appliedCoupon.id && user) {
+      // 1. If coupon was applied, log coupon_usage and increment count (works for logged-in & guest users)
+      if (appliedCoupon && appliedCoupon.id) {
         try {
-          await couponService.applyCouponToOrder(appliedCoupon.id, user.id, dbOrderId);
+          const customerEmail = shippingAddress?.email || user?.email || null;
+          await couponService.applyCouponToOrder(appliedCoupon.id, user?.id || null, dbOrderId, customerEmail);
         } catch (couponErr) {
           console.error('Error recording coupon usage:', couponErr);
         }

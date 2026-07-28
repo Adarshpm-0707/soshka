@@ -6,8 +6,10 @@ export const couponService = {
    * @param {string} code 
    * @param {number} cartTotal 
    * @param {string} userId 
+   * @param {Array} cartItems
+   * @param {string} userEmail
    */
-  async validateCoupon(code, cartTotal, userId, cartItems = []) {
+  async validateCoupon(code, cartTotal, userId, cartItems = [], userEmail = null) {
     try {
       if (!code) {
         return { valid: false, error: 'Coupon code is required' };
@@ -68,24 +70,36 @@ export const couponService = {
         return { valid: false, error: `Min order ₹${minAmount} required for eligible items` };
       }
 
-      // e. If max_uses NOT NULL AND used_count >= max_uses -> return { valid: false, error: 'Coupon limit reached' }
+      // e. If max_uses NOT NULL AND used_count >= max_uses -> return { valid: false, error: 'Coupon total limit reached' }
       if (coupon.max_uses !== null && coupon.max_uses !== undefined && coupon.used_count >= coupon.max_uses) {
-        return { valid: false, error: 'Coupon limit reached' };
+        return { valid: false, error: 'Coupon total limit reached' };
       }
 
-      // f. Check coupon_usage: if row exists for (coupon_id, user_id) -> return { valid: false, error: 'Already used' }
-      if (userId) {
-        const { data: usage, error: usageError } = await supabase
+      // f. Check coupon_usage against max_uses_per_user (default = 1 use per customer)
+      const maxPerUser = (coupon.max_uses_per_user !== null && coupon.max_uses_per_user !== undefined) ? Number(coupon.max_uses_per_user) : 1;
+
+      if (userId || userEmail) {
+        let usageQuery = supabase
           .from('coupon_usage')
-          .select('id')
-          .eq('coupon_id', coupon.id)
-          .eq('user_id', userId)
-          .maybeSingle();
+          .select('id', { count: 'exact', head: false })
+          .eq('coupon_id', coupon.id);
 
-        if (usageError) throw usageError;
+        if (userId && userEmail) {
+          usageQuery = usageQuery.or(`user_id.eq.${userId},email.eq.${userEmail}`);
+        } else if (userId) {
+          usageQuery = usageQuery.eq('user_id', userId);
+        } else if (userEmail) {
+          usageQuery = usageQuery.eq('email', userEmail);
+        }
 
-        if (usage) {
-          return { valid: false, error: 'Already used' };
+        const { data: usageData, count: userUsageCount, error: usageError } = await usageQuery;
+
+        if (usageError) console.warn('Error checking coupon_usage:', usageError);
+
+        const usagesCount = userUsageCount ?? (usageData ? usageData.length : 0);
+
+        if (usagesCount >= maxPerUser) {
+          return { valid: false, error: 'You have already used this coupon code' };
         }
       }
 
@@ -115,40 +129,56 @@ export const couponService = {
    * @param {string} couponId 
    * @param {string} userId 
    * @param {string} orderId 
+   * @param {string} email
    */
-  async applyCouponToOrder(couponId, userId, orderId) {
-    // a. INSERT into coupon_usage (coupon_id, user_id, order_id)
-    const { error: usageError } = await supabase
-      .from('coupon_usage')
-      .insert({
-        coupon_id: couponId,
-        user_id: userId,
-        order_id: orderId
+  async applyCouponToOrder(couponId, userId, orderId, email = null) {
+    try {
+      // 1. Try calling the RPC function (handles atomic increment & coupon_usage insert for both logged-in and guest users)
+      const { data: rpcRes, error: rpcErr } = await supabase.rpc('increment_coupon_usage', {
+        p_coupon_id: couponId,
+        p_user_id: userId || null,
+        p_order_id: orderId || null,
+        p_email: email || null
       });
 
-    if (usageError) throw usageError;
+      if (!rpcErr && rpcRes && rpcRes.success) {
+        return rpcRes;
+      }
+    } catch (err) {
+      console.warn('RPC increment_coupon_usage failed, trying direct fallback:', err);
+    }
 
-    // b. UPDATE coupons SET used_count = used_count + 1 WHERE id = couponId
-    // Fetch current count to safely increment
-    const { data: currentCoupon, error: fetchError } = await supabase
+    // Fallback: Direct table operations
+    if (userId || email) {
+      const { error: usageError } = await supabase
+        .from('coupon_usage')
+        .insert({
+          coupon_id: couponId,
+          user_id: userId || null,
+          order_id: orderId || null,
+          email: email || null
+        });
+
+      if (usageError) console.warn('Direct coupon_usage insert error:', usageError);
+    }
+
+    const { data: currentCoupon } = await supabase
       .from('coupons')
       .select('used_count')
       .eq('id', couponId)
-      .single();
+      .maybeSingle();
 
-    if (fetchError) throw fetchError;
-
-    const newCount = (currentCoupon.used_count || 0) + 1;
-
-    const { data, error: updateError } = await supabase
-      .from('coupons')
-      .update({ used_count: newCount })
-      .eq('id', couponId)
-      .select()
-      .single();
-
-    if (updateError) throw updateError;
-    return data;
+    if (currentCoupon) {
+      const newCount = (currentCoupon.used_count || 0) + 1;
+      const { data } = await supabase
+        .from('coupons')
+        .update({ used_count: newCount })
+        .eq('id', couponId)
+        .select()
+        .maybeSingle();
+      return data;
+    }
+    return null;
   },
 
   /**

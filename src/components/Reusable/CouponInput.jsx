@@ -27,7 +27,7 @@ const CouponInput = ({ onApply, onRemove, appliedCoupon }) => {
     setError(null);
 
     try {
-      const result = await couponService.validateCoupon(trimmedCode, cartTotal, user?.id, cartItems);
+      const result = await couponService.validateCoupon(trimmedCode, cartTotal, user?.id, cartItems, user?.email);
 
       if (result.valid) {
         if (onApply) {

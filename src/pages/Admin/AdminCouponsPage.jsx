@@ -30,6 +30,7 @@ const AdminCouponsPage = () => {
   const [value, setValue] = useState('');
   const [minOrderAmount, setMinOrderAmount] = useState('0');
   const [maxUses, setMaxUses] = useState('');
+  const [maxUsesPerUser, setMaxUsesPerUser] = useState('1');
   const [expiresAt, setExpiresAt] = useState('');
   const [isActive, setIsActive] = useState(true);
 
@@ -58,6 +59,7 @@ const AdminCouponsPage = () => {
     setValue('');
     setMinOrderAmount('0');
     setMaxUses('');
+    setMaxUsesPerUser('1');
     setExpiresAt('');
     setIsActive(true);
     setIsModalOpen(true);
@@ -70,6 +72,7 @@ const AdminCouponsPage = () => {
     setValue(coupon.value !== undefined ? String(coupon.value) : '');
     setMinOrderAmount(coupon.min_order_amount !== undefined ? String(coupon.min_order_amount) : '0');
     setMaxUses(coupon.max_uses !== null && coupon.max_uses !== undefined ? String(coupon.max_uses) : '');
+    setMaxUsesPerUser(coupon.max_uses_per_user !== null && coupon.max_uses_per_user !== undefined ? String(coupon.max_uses_per_user) : '1');
     setExpiresAt(coupon.expires_at ? new Date(coupon.expires_at).toISOString().slice(0, 16) : '');
     setIsActive(coupon.is_active ?? true);
     setIsModalOpen(true);
@@ -94,6 +97,7 @@ const AdminCouponsPage = () => {
         value: Number(value),
         min_order_amount: minOrderAmount !== '' ? Number(minOrderAmount) : 0,
         max_uses: maxUses !== '' ? parseInt(maxUses, 10) : null,
+        max_uses_per_user: maxUsesPerUser !== '' ? parseInt(maxUsesPerUser, 10) : 1,
         expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
         is_active: isActive,
       };
@@ -440,15 +444,29 @@ const AdminCouponsPage = () => {
               />
             </div>
 
-            {/* Max Uses */}
+            {/* Max Uses Per Customer */}
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                Max Uses (Empty = Unlimited)
+                Uses Per Customer (Default: 1)
               </label>
               <Input
                 type="number"
                 min="1"
-                placeholder="Unlimited"
+                placeholder="1 (Default: 1 use per customer)"
+                value={maxUsesPerUser}
+                onChange={(e) => setMaxUsesPerUser(e.target.value)}
+              />
+            </div>
+
+            {/* Total Max Redemptions Overall */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                Total Redemptions Limit (Overall)
+              </label>
+              <Input
+                type="number"
+                min="1"
+                placeholder="Empty = Unlimited Total Redemptions"
                 value={maxUses}
                 onChange={(e) => setMaxUses(e.target.value)}
               />
