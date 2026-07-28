@@ -86,7 +86,15 @@ export const orderService = {
       body: JSON.stringify({ order_id: orderId })
     });
 
-    const responseData = await res.json();
+    const contentType = res.headers.get('content-type') || '';
+    let responseData = {};
+    if (contentType.includes('application/json')) {
+      responseData = await res.json().catch(() => ({}));
+    } else {
+      const text = await res.text().catch(() => '');
+      responseData = { error: text.slice(0, 100) || `Server error (${res.status})` };
+    }
+
     if (!res.ok) {
       throw new Error(responseData.error || 'Failed to cancel order');
     }

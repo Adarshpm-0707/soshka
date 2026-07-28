@@ -12,6 +12,9 @@ export const CartProvider = ({ children }) => {
   // Track if DB cart table exists to avoid repeated failing calls
   const [dbAvailable, setDbAvailable] = useState(true);
 
+  // ── Coupon State ─────────────────────────────────────────────────────────
+  const [appliedCoupon, setAppliedCouponState] = useState(null);
+
   // ── LocalStorage helpers ──────────────────────────────────────────────────
   const getLocalCart = () => {
     try {
@@ -224,11 +227,13 @@ export const CartProvider = ({ children }) => {
         localStorage.removeItem('guest_cart');
       }
       setCartItems([]);
+      setAppliedCouponState(null);
     } catch (err) {
       if (isSchemaError(err)) {
         setDbAvailable(false);
         localStorage.removeItem('guest_cart');
         setCartItems([]);
+        setAppliedCouponState(null);
       } else {
         setError(err.message);
         throw err;
@@ -236,6 +241,15 @@ export const CartProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // ── Coupon Handlers ──────────────────────────────────────────────────────
+  const setAppliedCoupon = (coupon) => {
+    setAppliedCouponState(coupon);
+  };
+
+  const removeCoupon = () => {
+    setAppliedCouponState(null);
   };
 
   // ── Computed values ───────────────────────────────────────────────────────
@@ -252,6 +266,40 @@ export const CartProvider = ({ children }) => {
     return total + unitPrice * item.quantity;
   }, 0);
 
+  const discountAmount = React.useMemo(() => {
+    if (!appliedCoupon) return 0;
+    const couponValue = Number(appliedCoupon.value) || 0;
+    let discount = 0;
+
+    const restrictedProductIds = appliedCoupon.applicable_product_ids;
+    let applicableSubtotal = cartTotal;
+
+    if (Array.isArray(restrictedProductIds) && restrictedProductIds.length > 0) {
+      applicableSubtotal = cartItems.reduce((sum, item) => {
+        const product = item.product || item;
+        const pId = item.product_id || item.product?.id || item.id;
+        if (pId && restrictedProductIds.includes(pId)) {
+          const originalPrice = product.original_price ?? product.price ?? 0;
+          const offerPrice = product.offer_price;
+          const isOfferActive = !!(offerPrice && Number(offerPrice) > 0);
+          const unitPrice = isOfferActive ? Number(offerPrice) : Number(originalPrice);
+          return sum + unitPrice * (item.quantity || 1);
+        }
+        return sum;
+      }, 0);
+    }
+
+    if (appliedCoupon.type === 'percentage') {
+      discount = (couponValue / 100) * applicableSubtotal;
+    } else if (appliedCoupon.type === 'flat') {
+      discount = Math.min(couponValue, applicableSubtotal);
+    }
+
+    return Math.max(0, Number(discount.toFixed(2)));
+  }, [appliedCoupon, cartTotal, cartItems]);
+
+  const finalTotal = Math.max(0, cartTotal - discountAmount);
+
   const value = {
     cartItems,
     loading,
@@ -259,6 +307,11 @@ export const CartProvider = ({ children }) => {
     dbAvailable,
     cartCount,
     cartTotal,
+    appliedCoupon,
+    discountAmount,
+    finalTotal,
+    setAppliedCoupon,
+    removeCoupon,
     addToCart,
     updateQuantity,
     removeFromCart,

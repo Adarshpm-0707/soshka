@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useCart } from '../../hooks/useCart';
 import { orderService } from '../../services/orderService';
+import { couponService } from '../../services/couponService';
 import { initiateRazorpayPayment, initiateCODPayment } from '../../services/checkoutService';
 import { SHIPPING_CHARGES, FREE_SHIPPING_THRESHOLD } from '../../utils/constants';
 import Loader from '../../components/Reusable/Loader';
@@ -10,7 +11,7 @@ import { showToast } from '../../components/Reusable/Toast';
 import Button from '../../components/Reusable/Button';
 import {
   ArrowLeft, CreditCard, ShieldCheck, Truck, Check,
-  Lock, ChevronDown, Sparkles, RefreshCw
+  Lock, ChevronDown, Sparkles, RefreshCw, Ticket
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatCurrency';
 
@@ -18,7 +19,15 @@ const PaymentPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { cartItems, cartTotal, clearCart } = useCart();
+  const {
+    cartItems,
+    cartTotal,
+    appliedCoupon,
+    discountAmount,
+    finalTotal,
+    removeCoupon,
+    clearCart
+  } = useCart();
 
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('razorpay');
@@ -28,10 +37,10 @@ const PaymentPage = () => {
 
   const shippingAddress = location.state?.shippingAddress;
 
-  // Display-only cost calculation (actual totals computed server-side for Razorpay/COD)
+  // Display-only cost calculation
   const shippingCost = 0;
   const codFee = paymentMethod === 'cod' ? 60 : 0;
-  const grandTotal = cartTotal + codFee;
+  const grandTotal = finalTotal + codFee;
 
   // ─── Razorpay Payment (via Edge Functions) ────────────────────────────────
   const handleRazorpayPayment = async () => {
@@ -68,8 +77,16 @@ const PaymentPage = () => {
   // ─── Post-payment success actions ────────────────────────────────────────
   const handlePostPaymentSuccess = async (dbOrderId) => {
     try {
-      // Note: email is already fired server-side from create-cod-order / verify-razorpay-payment.
-      // This is a frontend safety-net call in case the server-side trigger missed.
+      // 1. If coupon was applied, log coupon_usage and increment count
+      if (appliedCoupon && appliedCoupon.id && user) {
+        try {
+          await couponService.applyCouponToOrder(appliedCoupon.id, user.id, dbOrderId);
+        } catch (couponErr) {
+          console.error('Error recording coupon usage:', couponErr);
+        }
+      }
+
+      // Send email confirmation
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       fetch(`${supabaseUrl}/functions/v1/send-order-email`, {
@@ -88,7 +105,7 @@ const PaymentPage = () => {
         }
       }).catch((e) => console.warn('[Email] Non-blocking send failed:', e));
 
-      // Clear cart and navigate to order detail
+      // Clear cart and applied coupon, then navigate to order detail
       await clearCart();
       showToast('Order placed successfully! 🎉', 'success');
       navigate(`/orders/${dbOrderId}`);
@@ -210,6 +227,15 @@ const PaymentPage = () => {
                     <span>Items Subtotal:</span>
                     <span className="text-slate-800 dark:text-slate-200">{formatCurrency(cartTotal)}</span>
                   </div>
+                  {appliedCoupon && discountAmount > 0 && (
+                    <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                      <span className="flex items-center space-x-1">
+                        <Ticket size={12} />
+                        <span>Coupon Discount ({appliedCoupon.code}):</span>
+                      </span>
+                      <span>- {formatCurrency(discountAmount)}</span>
+                    </div>
+                  )}
                   {paymentMethod === 'cod' && (
                     <div className="flex justify-between">
                       <span>COD Fee:</span>

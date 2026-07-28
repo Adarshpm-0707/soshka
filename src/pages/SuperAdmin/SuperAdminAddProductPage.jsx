@@ -6,12 +6,16 @@ import { ArrowLeft, Upload, Trash2, Loader2, Crown, Plus } from 'lucide-react';
 import Input from '../../components/Reusable/Input';
 import Button from '../../components/Reusable/Button';
 import { showToast } from '../../components/Reusable/Toast';
+import { couponService } from '../../services/couponService';
+import ProductCouponSection from '../../components/Admin/ProductCouponSection';
 
 const SuperAdminAddProductPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState([]);
   const [offers, setOffers] = useState([]);
+  const [selectedCouponIds, setSelectedCouponIds] = useState([]);
+
 
   // Form Fields
   const [name, setName] = useState('');
@@ -275,9 +279,12 @@ const SuperAdminAddProductPage = () => {
 
       // Log the superadmin creation action
       if (data) {
+        if (selectedCouponIds.length > 0) {
+          await couponService.syncProductCoupons(data.id, selectedCouponIds);
+        }
+
         await adminLogService.logAction('created_product', 'products', data.id, {
           name,
-          brand,
           sku,
           price: originalPrice,
           offer_price: offerPrice,
@@ -536,7 +543,14 @@ const SuperAdminAddProductPage = () => {
           </div>
         </div>
 
-        {/* Section 2: Detailed Text Information */}
+        {/* Section 2: Product Coupon Assignment */}
+        <ProductCouponSection
+          selectedCouponIds={selectedCouponIds}
+          setSelectedCouponIds={setSelectedCouponIds}
+          disabled={loading}
+        />
+
+        {/* Section 3: Detailed Text Information */}
         <div className="bg-[#0c0c0d] border border-[#1c1c1e] rounded-3xl p-6 shadow-sm space-y-4">
           <div>
             <h3 className="font-bold text-sm tracking-wide uppercase text-slate-200">Detailed Narrative</h3>

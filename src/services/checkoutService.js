@@ -36,7 +36,16 @@ async function callEdgeFunction(fnName, body) {
 
   if (error) {
     console.error(`Edge Function ${fnName} error:`, error);
-    throw new Error(error.message || `Edge Function ${fnName} failed`);
+    let msg = error.message || `Edge Function ${fnName} failed`;
+    try {
+      if (error.context && typeof error.context.json === 'function') {
+        const jsonErr = await error.context.json();
+        if (jsonErr && jsonErr.error) {
+          msg = jsonErr.error;
+        }
+      }
+    } catch (_) {}
+    throw new Error(msg);
   }
   return data;
 }
@@ -150,11 +159,92 @@ export async function initiateCODPayment(cartItems, shippingAddress) {
     size: item.size || '',
   }));
 
-  const { db_order_id } = await callEdgeFunction(
-    'create-cod-order',
-    { items, shipping_address: shippingAddress }
-  );
+  try {
+    const data = await callEdgeFunction(
+      'create-cod-order',
+      { items, shipping_address: shippingAddress }
+    );
+    if (data && data.db_order_id) {
+      return { success: true, db_order_id: data.db_order_id };
+    }
+  } catch (edgeErr) {
+    console.warn('Edge function create-cod-order unavailable, using direct DB order creation:', edgeErr);
+  }
 
-  return { success: true, db_order_id };
+  // === FALLBACK: Direct DB Order Creation ===
+  const { data: { session } } = await supabase.auth.getSession();
+  const userId = session?.user?.id || null;
+
+  let subtotal = 0;
+  const enrichedItems = cartItems.map(item => {
+    const price = Number(item.product?.offer_price || item.product?.price || item.price || 0);
+    const qty = Number(item.quantity || 1);
+    subtotal += price * qty;
+    return {
+      product_id: item.product_id,
+      name: item.product?.name || item.name || 'Product',
+      price: price,
+      quantity: qty,
+      size: item.size || '',
+      image: item.product?.images?.[0] || item.image || '',
+    };
+  });
+
+  const cod_fee = 60;
+  const shipping_fee = 0;
+  const total = subtotal + shipping_fee + cod_fee;
+
+  const customOrderId = `00000000-0000-0000-0000-${Array.from({ length: 12 }, () => Math.floor(Math.random() * 10)).join("")}`;
+
+  const { data: dbOrder, error: dbError } = await supabase
+    .from('orders')
+    .insert({
+      id: customOrderId,
+      user_id: userId,
+      items: enrichedItems,
+      subtotal,
+      shipping_fee,
+      cod_fee,
+      total,
+      status: 'confirmed',
+      payment_status: 'pending',
+      order_status: 'confirmed',
+      payment_method: 'cod',
+      shipping_address: shippingAddress,
+    })
+    .select()
+    .single();
+
+  if (dbError) {
+    console.error('Direct COD order creation error:', dbError);
+    throw new Error(dbError.message || 'Failed to place COD order.');
+  }
+
+  // === BACKGROUND SHIPROCKET AUTO-DISPATCH FOR NEW INCOMING ORDER ===
+  try {
+    const custEmail = (dbOrder.shipping_address?.email || '').toLowerCase();
+    const custName = (dbOrder.shipping_address?.name || '').toLowerCase();
+    const isTest = custEmail.includes('test@') || custEmail.includes('example.com') || custName.includes('test customer');
+
+    if (!isTest) {
+      fetch('/api/shiprocket-pickup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order: dbOrder,
+          email: dbOrder.shipping_address?.email || 'customer@soshka.in'
+        })
+      }).then(async (res) => {
+        if (res.ok) {
+          console.log('[Shiprocket Auto-Dispatch] Pickup scheduled automatically!');
+        } else {
+          const errText = await res.text();
+          console.warn('[Shiprocket Auto-Dispatch Warning]', errText);
+        }
+      }).catch(err => console.warn('[Shiprocket Auto-Dispatch Non-blocking Error]', err));
+    }
+  } catch (_) {}
+
+  return { success: true, db_order_id: dbOrder.id };
 }
 

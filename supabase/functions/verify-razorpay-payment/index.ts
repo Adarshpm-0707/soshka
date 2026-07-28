@@ -37,18 +37,20 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Verify user session
-    const supabaseUser = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized — invalid session" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Verify user session if available
+    let userId = null;
+    if (authHeader && authHeader !== 'Bearer null' && authHeader !== 'Bearer undefined') {
+      try {
+        const supabaseUser = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_ANON_KEY")!,
+          { global: { headers: { Authorization: authHeader } } }
+        );
+        const { data: { user } } = await supabaseUser.auth.getUser();
+        if (user) userId = user.id;
+      } catch (_) {
+        userId = null;
+      }
     }
 
     // === HMAC SIGNATURE VERIFICATION (using Deno native Web Crypto API) ===
@@ -100,7 +102,6 @@ Deno.serve(async (req: Request) => {
       })
       .eq("id", db_order_id)
       .eq("razorpay_order_id", razorpay_order_id)
-      .eq("user_id", user.id)
       .neq("payment_status", "paid") // idempotency guard using new column
       .select()
       .single();

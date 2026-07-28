@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { adminLogService } from '../../services/adminLogService';
-import { Search, Loader2, Package, Calendar, User, CreditCard, ChevronRight, X, AlertCircle, Trash2 } from 'lucide-react';
+import { Search, Loader2, Package, Calendar, User, CreditCard, ChevronRight, X, AlertCircle, Trash2, MapPin, Phone, Mail, ExternalLink, Truck } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { showToast } from '../../components/Reusable/Toast';
 import ConfirmModal from '../../components/Reusable/ConfirmModal';
@@ -20,11 +20,65 @@ const SuperAdminOrdersPage = () => {
 
   const [activeTab, setActiveTab] = useState('active'); // 'active' or 'cancelled'
   const [timeTick, setTimeTick] = useState(Date.now());
+  const autoDispatchedRef = useRef(new Set());
 
   useEffect(() => {
     const interval = setInterval(() => setTimeTick(Date.now()), 10000);
     return () => clearInterval(interval);
   }, []);
+
+  const autoDispatchNewOrders = (orderList) => {
+    orderList.forEach((order) => {
+      const email = (order.profile?.email || order.shipping_address?.email || '').toLowerCase();
+      const name = (order.profile?.name || order.shipping_address?.name || '').toLowerCase();
+      const orderIdStr = String(order.id || '').toLowerCase();
+
+      const isTestOrder =
+        email.includes('test@') ||
+        email.includes('example.com') ||
+        name.includes('test customer') ||
+        orderIdStr.includes('test');
+
+      if (isTestOrder) return;
+
+      const isEligible = (order.status === 'confirmed' || order.status === 'paid' || order.status === 'processing') && !order.shiprocket_shipment_id;
+      if (isEligible && !autoDispatchedRef.current.has(order.id)) {
+        autoDispatchedRef.current.add(order.id);
+        console.log(`[Auto-Shiprocket SuperAdmin] Auto-dispatching new incoming order ${order.id}...`);
+        fetch('/api/shiprocket-pickup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            order,
+            email: order.profile?.email || order.shipping_address?.email || 'customer@soshka.in'
+          })
+        })
+          .then(async (res) => {
+            const contentType = res.headers.get('content-type') || '';
+            let data = {};
+            if (contentType.includes('application/json')) {
+              data = await res.json().catch(() => ({}));
+            } else {
+              const text = await res.text().catch(() => '');
+              data = { error: `Server response: ${text.slice(0, 80) || res.statusText}` };
+            }
+
+            if (res.ok && data.success) {
+              console.log(`[Auto-Shiprocket SuperAdmin] Successfully dispatched order ${order.id}`);
+              showToast(`🚚 Order #${order.id.startsWith('00000000-0000-0000-0000-') ? order.id.split('-').pop() : order.id.slice(0, 8).toUpperCase()} auto-dispatched to Shiprocket!`, 'success');
+              const { data: updatedData } = await supabase
+                .from('orders')
+                .select('*, profile:profiles(email, name)')
+                .order('created_at', { ascending: false });
+              if (updatedData) setOrders(updatedData);
+            } else {
+              console.warn(`[Auto-Shiprocket Warning] Order ${order.id}:`, data.error || 'Dispatch warning');
+            }
+          })
+          .catch((err) => console.warn(`[Auto-Shiprocket Error] Order ${order.id}:`, err));
+      }
+    });
+  };
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -34,7 +88,9 @@ const SuperAdminOrdersPage = () => {
         .select('*, profile:profiles(email, name)')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      setOrders(data || []);
+      const orderList = data || [];
+      setOrders(orderList);
+      autoDispatchNewOrders(orderList);
     } catch (err) {
       console.error('Error fetching superadmin orders:', err);
       showToast(err.message || 'Error loading orders', 'error');
@@ -45,6 +101,18 @@ const SuperAdminOrdersPage = () => {
 
   useEffect(() => {
     fetchOrders();
+
+    // Subscribe to real-time order updates
+    const channel = supabase
+      .channel('superadmin-orders-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        fetchOrders();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleUpdateStatus = async (orderId, newStatus) => {
@@ -75,7 +143,8 @@ const SuperAdminOrdersPage = () => {
             },
             body: JSON.stringify({ order_id: orderId, email_type: 'cancellation' })
           });
-          const data = await res.json();
+          const contentType = res.headers.get('content-type') || '';
+          const data = contentType.includes('application/json') ? await res.json().catch(() => ({})) : {};
           if (res.ok && data.success) {
             showToast(`Cancellation email sent to ${data.sent_to} ✉️`, 'success');
           } else {
@@ -129,13 +198,16 @@ const SuperAdminOrdersPage = () => {
 
   // Filter orders by search query, tab (Active/Cancelled), and status filter
   const filteredOrders = orders.filter((order) => {
-    const userEmail = order.profile?.email || '';
-    const userName = order.profile?.name || '';
+    const isGuestOrder = !order.user_id || !order.profile || !order.profile?.email;
+    const userEmail = order.profile?.email || order.shipping_address?.email || '';
+    const userName = order.profile?.name || order.shipping_address?.name || 'Guest User';
     const orderId = order.id || '';
+    const query = searchQuery.toLowerCase();
     const matchesSearch =
-      userEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      orderId.toLowerCase().includes(searchQuery.toLowerCase());
+      userEmail.toLowerCase().includes(query) ||
+      userName.toLowerCase().includes(query) ||
+      orderId.toLowerCase().includes(query) ||
+      (query.includes('guest') && isGuestOrder);
 
     // 'active' tab = All Orders (including cancelled); 'cancelled' tab = cancelled/failed only
     const matchesTab = activeTab === 'cancelled'
@@ -145,6 +217,8 @@ const SuperAdminOrdersPage = () => {
     let matchesStatus = false;
     if (statusFilter === 'all') {
       matchesStatus = true;
+    } else if (statusFilter === 'guest') {
+      matchesStatus = isGuestOrder;
     } else if (statusFilter === 'refund_pending') {
       matchesStatus = order.refund_status === 'processing';
     } else if (statusFilter === 'refund_completed') {
@@ -211,7 +285,7 @@ const SuperAdminOrdersPage = () => {
           <Search size={18} className="text-slate-500 mr-3 shrink-0" />
           <input
             type="text"
-            placeholder="Search by email, name, or order id..."
+            placeholder="Search by email, name, order id, or 'guest'..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="bg-transparent text-sm w-full outline-none border-none focus:ring-0 text-white placeholder:text-slate-600"
@@ -228,6 +302,7 @@ const SuperAdminOrdersPage = () => {
             {activeTab === 'active' ? (
               <>
                 <option value="all">All Orders</option>
+                <option value="guest">Guest Orders Only 👤</option>
                 <option value="pending">Pending</option>
                 <option value="paid">Paid</option>
                 <option value="confirmed">Confirmed</option>
@@ -243,6 +318,7 @@ const SuperAdminOrdersPage = () => {
             ) : (
               <>
                 <option value="all">All Cancelled</option>
+                <option value="guest">Guest Orders Only 👤</option>
                 <option value="cancelled">Cancelled</option>
                 <option value="failed">Failed</option>
                 <option value="refund_pending">Refund Pending</option>
@@ -271,7 +347,7 @@ const SuperAdminOrdersPage = () => {
               <thead>
                 <tr className="bg-slate-900/50 border-b border-[#1c1c1e] text-[10px] uppercase tracking-wider font-extrabold text-slate-400">
                   <th className="py-4 px-6">Order ID</th>
-                  <th className="py-4 px-6">Customer Email</th>
+                  <th className="py-4 px-6">Customer / Guest</th>
                   <th className="py-4 px-6">Products</th>
                   <th className="py-4 px-6">Date</th>
                   <th className="py-4 px-6">Grand Total</th>
@@ -280,32 +356,44 @@ const SuperAdminOrdersPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#1c1c1e] text-sm font-semibold">
-                {filteredOrders.map((order) => (
-                  <tr
-                    key={order.id}
-                    onClick={() => setSelectedOrder(order)}
-                    className="hover:bg-white/[0.01] transition-colors cursor-pointer"
-                  >
-                    <td className="py-4 px-6 font-mono text-xs text-slate-400 truncate max-w-[200px]" title={order.id}>
-                      <div className="flex items-center">
-                        <span>{order.id.startsWith('00000000-0000-0000-0000-') ? order.id.split('-').pop() : order.id.slice(0, 8).toUpperCase()}</span>
-                        {(() => {
-                          const orderTime = new Date(order.created_at).getTime();
-                          const diffMins = (Date.now() - orderTime) / (1000 * 60);
-                          const remainingMins = Math.max(0, Math.floor(60 - diffMins));
-                          const isNew = remainingMins > 0 && order.status !== 'cancelled' && order.status !== 'failed';
-                          return isNew ? (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-lg text-[9px] font-black bg-[#ff2a85] text-white dark:bg-[#ff2a85]/20 dark:text-pink-400 border border-[#ff2a85]/20 animate-pulse ml-2 shrink-0">
-                              ⚡ NEW ({remainingMins}m left)
+                {filteredOrders.map((order) => {
+                  const isGuestOrder = !order.user_id || !order.profile || !order.profile?.email;
+                  const customerName = order.profile?.name || order.shipping_address?.name || 'Guest User';
+                  const customerEmail = order.profile?.email || order.shipping_address?.email || 'N/A';
+
+                  return (
+                    <tr
+                      key={order.id}
+                      onClick={() => setSelectedOrder(order)}
+                      className="hover:bg-white/[0.01] transition-colors cursor-pointer"
+                    >
+                      <td className="py-4 px-6 font-mono text-xs text-slate-400 truncate max-w-[200px]" title={order.id}>
+                        <div className="flex items-center">
+                          <span>{order.id.startsWith('00000000-0000-0000-0000-') ? order.id.split('-').pop() : order.id.slice(0, 8).toUpperCase()}</span>
+                          {(() => {
+                            const orderTime = new Date(order.created_at).getTime();
+                            const diffMins = (Date.now() - orderTime) / (1000 * 60);
+                            const remainingMins = Math.max(0, Math.floor(60 - diffMins));
+                            const isNew = remainingMins > 0 && order.status !== 'cancelled' && order.status !== 'failed';
+                            return isNew ? (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-lg text-[9px] font-black bg-[#ff2a85] text-white dark:bg-[#ff2a85]/20 dark:text-pink-400 border border-[#ff2a85]/20 animate-pulse ml-2 shrink-0">
+                                ⚡ NEW ({remainingMins}m left)
+                              </span>
+                            ) : null;
+                          })()}
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className="text-slate-105 font-bold">{customerName}</span>
+                          {isGuestOrder && (
+                            <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider bg-pink-500/10 text-[#ff2a85] border border-pink-500/20 rounded-md shrink-0">
+                              Guest
                             </span>
-                          ) : null;
-                        })()}
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <span className="text-slate-105 font-bold block">{order.profile?.name || 'Anonymous'}</span>
-                      <span className="text-[10px] text-slate-500 block font-normal">{order.profile?.email || 'N/A'}</span>
-                    </td>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-slate-500 block font-normal">{customerEmail}</span>
+                      </td>
                     <td className="py-4 px-6">
                       <div className="space-y-1 max-w-[200px]">
                         {(order.items || []).map((item, idx) => (
@@ -346,8 +434,9 @@ const SuperAdminOrdersPage = () => {
                       </div>
                     </td>
                   </tr>
-                ))}
-              </tbody>
+                );
+              })}
+            </tbody>
             </table>
           </div>
         </div>
@@ -379,12 +468,26 @@ const SuperAdminOrdersPage = () => {
               {/* Left Column: Customer details + Shipping */}
               <div className="space-y-4">
                 <div className="space-y-2 border-b border-[#1c1c1e] pb-3">
-                  <span className="text-[10px] uppercase font-extrabold text-slate-500 tracking-wider flex items-center">
-                    <User size={12} className="mr-1" /> Customer Info
+                  <span className="text-[10px] uppercase font-extrabold text-slate-500 tracking-wider flex items-center justify-between">
+                    <span className="flex items-center"><User size={12} className="mr-1" /> Customer Info</span>
+                    {(!selectedOrder.user_id || !selectedOrder.profile?.email) && (
+                      <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider bg-pink-500/10 text-[#ff2a85] border border-pink-500/20 rounded-full">
+                        Guest Order
+                      </span>
+                    )}
                   </span>
                   <div className="text-sm font-semibold">
-                    <p className="font-extrabold text-white">{selectedOrder.profile?.name || 'Anonymous'}</p>
-                    <p className="text-xs text-slate-400">{selectedOrder.profile?.email || 'N/A'}</p>
+                    <p className="font-extrabold text-white">
+                      {selectedOrder.profile?.name || selectedOrder.shipping_address?.name || 'Guest User'}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {selectedOrder.profile?.email || selectedOrder.shipping_address?.email || 'N/A'}
+                    </p>
+                    {(!selectedOrder.user_id || !selectedOrder.profile?.email) && (
+                      <div className="mt-1.5 p-2 bg-pink-500/5 border border-pink-500/15 rounded-xl text-[10px] text-[#ff2a85] font-extrabold flex items-center gap-1.5">
+                        <span>🛍️ Customer purchased this order as a Guest</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -397,17 +500,44 @@ const SuperAdminOrdersPage = () => {
                   </p>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 border-t border-[#1c1c1e] pt-3">
                   <span className="text-[10px] uppercase font-extrabold text-slate-500 tracking-wider flex items-center">
-                    📍 Shipping Location
+                    <MapPin size={12} className="mr-1 text-primary-400" /> Shipping Destination Address
                   </span>
-                  <div className="text-xs font-semibold text-slate-400 leading-relaxed">
-                    <p className="font-bold text-white">{selectedOrder.shipping_address?.name}</p>
-                    {selectedOrder.shipping_address?.email && <p className="text-primary-400 font-bold">{selectedOrder.shipping_address.email}</p>}
-                    <p>{selectedOrder.shipping_address?.addressLine || selectedOrder.shipping_address?.line1}</p>
-                    {selectedOrder.shipping_address?.line2 && <p>{selectedOrder.shipping_address?.line2}</p>}
-                    <p>{selectedOrder.shipping_address?.city}, {selectedOrder.shipping_address?.state} - {selectedOrder.shipping_address?.postalCode || selectedOrder.shipping_address?.postal_code}</p>
-                    <p>Contact: {selectedOrder.shipping_address?.phone}</p>
+                  <div className="p-3.5 bg-slate-900/80 border border-[#242428] rounded-xl text-xs space-y-1.5">
+                    <p className="font-extrabold text-white">
+                      {selectedOrder.shipping_address?.name || selectedOrder.profile?.name || 'Customer Name N/A'}
+                    </p>
+
+                    {(selectedOrder.shipping_address?.email || selectedOrder.profile?.email) && (
+                      <p className="text-primary-400 font-medium flex items-center gap-1.5">
+                        <Mail size={11} className="shrink-0" />
+                        <a href={`mailto:${selectedOrder.shipping_address?.email || selectedOrder.profile?.email}`} className="hover:underline">
+                          {selectedOrder.shipping_address?.email || selectedOrder.profile?.email}
+                        </a>
+                      </p>
+                    )}
+
+                    {selectedOrder.shipping_address?.phone && (
+                      <p className="text-slate-300 font-semibold flex items-center gap-1.5">
+                        <Phone size={11} className="shrink-0 text-emerald-400" />
+                        <a href={`tel:${selectedOrder.shipping_address.phone}`} className="hover:underline">
+                          {selectedOrder.shipping_address.phone}
+                        </a>
+                      </p>
+                    )}
+
+                    <div className="text-slate-400 pt-1.5 border-t border-[#242428] leading-relaxed">
+                      <p>{selectedOrder.shipping_address?.addressLine || selectedOrder.shipping_address?.line1 || selectedOrder.shipping_address?.address || 'Street Address N/A'}</p>
+                      {selectedOrder.shipping_address?.line2 && <p>{selectedOrder.shipping_address.line2}</p>}
+                      <p className="font-bold text-white">
+                        {[
+                          selectedOrder.shipping_address?.city,
+                          selectedOrder.shipping_address?.state,
+                          selectedOrder.shipping_address?.postalCode || selectedOrder.shipping_address?.postal_code || selectedOrder.shipping_address?.pincode
+                        ].filter(Boolean).join(', ')}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -511,20 +641,50 @@ const SuperAdminOrdersPage = () => {
                 )}
 
                 <div className="space-y-2 pt-2 border-t border-[#1c1c1e]">
-                  <span className="text-[10px] uppercase font-extrabold text-slate-550 tracking-wider flex items-center">
-                    📦 Shiprocket Shipping
+                  <span className="text-[10px] uppercase font-extrabold text-slate-550 tracking-wider flex items-center justify-between">
+                    <span className="flex items-center"><Truck size={12} className="mr-1 text-emerald-400" /> Shiprocket Logistics</span>
+                    {selectedOrder.shiprocket_shipment_id && (
+                      <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full">
+                        Connected
+                      </span>
+                    )}
                   </span>
                   {selectedOrder.shiprocket_shipment_id ? (
-                    <div className="text-xs font-semibold text-slate-450 space-y-1">
-                      <div className="flex justify-between">
+                    <div className="text-xs font-semibold text-slate-450 space-y-2">
+                      <div className="flex justify-between items-center">
                         <span>Shipment ID:</span>
-                        <span className="text-white font-bold">{selectedOrder.shiprocket_shipment_id}</span>
+                        <span className="text-white font-bold font-mono bg-slate-900 border border-[#26262a] px-2 py-0.5 rounded text-[11px]">
+                          {selectedOrder.shiprocket_shipment_id}
+                        </span>
                       </div>
-                      {selectedOrder.shiprocket_awb && (
-                        <div className="flex justify-between">
+                      {selectedOrder.shiprocket_awb ? (
+                        <div className="flex justify-between items-center">
                           <span>AWB Code:</span>
-                          <span className="text-white font-mono">{selectedOrder.shiprocket_awb}</span>
+                          <span className="text-emerald-400 font-bold font-mono bg-emerald-500/10 px-2 py-0.5 rounded text-[11px]">
+                            {selectedOrder.shiprocket_awb}
+                          </span>
                         </div>
+                      ) : (
+                        <div className="flex justify-between items-center">
+                          <span>AWB Status:</span>
+                          <span className="text-amber-400 font-semibold text-[10px]">Pending Wallet Recharge</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center text-[10px]">
+                        <span>Pickup Location:</span>
+                        <span className="text-slate-300 font-bold">warehouse</span>
+                      </div>
+
+                      {selectedOrder.shiprocket_awb && (
+                        <a
+                          href={`https://shiprocket.co/tracking/${selectedOrder.shiprocket_awb}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-2 w-full flex items-center justify-center space-x-1.5 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold transition-all shadow-sm"
+                        >
+                          <span>Track Order on Shiprocket</span>
+                          <ExternalLink size={12} />
+                        </a>
                       )}
                     </div>
                   ) : (
@@ -539,12 +699,23 @@ const SuperAdminOrdersPage = () => {
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({
                                 order: selectedOrder,
-                                email: selectedOrder.profile?.email || 'customer@soshka.in'
+                                email: selectedOrder.profile?.email || selectedOrder.shipping_address?.email || 'customer@soshka.in'
                               })
                             });
-                            const data = await res.json();
+                            const contentType = res.headers.get('content-type') || '';
+                            let data = {};
+                            if (contentType.includes('application/json')) {
+                              data = await res.json().catch(() => ({}));
+                            } else {
+                              const text = await res.text().catch(() => '');
+                              throw new Error(`Server returned unexpected response (${res.status}): ${text.slice(0, 100) || res.statusText}`);
+                            }
                             if (res.ok && data.success) {
-                              showToast('Shiprocket pickup scheduled successfully!', 'success');
+                              if (data.warning) {
+                                showToast(`Order created in Shiprocket! ⚠️ ${data.warning}`, 'warning');
+                              } else {
+                                showToast('Shiprocket pickup scheduled successfully! 🚚', 'success');
+                              }
                               setSelectedOrder(prev => ({
                                 ...prev,
                                 shiprocket_shipment_id: data.shipment_id,
@@ -552,15 +723,16 @@ const SuperAdminOrdersPage = () => {
                               }));
                               fetchOrders();
                             } else {
-                              throw new Error(data.error || 'Failed to connect');
+                              throw new Error(data.error || 'Failed to connect to Shiprocket');
                             }
                           } catch (err) {
-                            showToast(err.message, 'error');
+                            console.error('Shiprocket error:', err);
+                            showToast(err.message || 'Shiprocket pickup scheduling failed', 'error');
                           }
                         }}
-                        className="w-full flex items-center justify-center space-x-2 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold transition-all"
+                        className="w-full flex items-center justify-center space-x-2 py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold transition-all active:scale-95"
                       >
-                        Schedule Shiprocket Pickup
+                        <span>Schedule Shiprocket Pickup</span>
                       </button>
                     </div>
                   )}
@@ -580,7 +752,8 @@ const SuperAdminOrdersPage = () => {
                             },
                             body: JSON.stringify({ order_id: selectedOrder.id })
                           });
-                          const data = await res.json();
+                          const contentType = res.headers.get('content-type') || '';
+                          const data = contentType.includes('application/json') ? await res.json().catch(() => ({})) : {};
                           if (res.ok && data.success) {
                             showToast(`Invoice email sent to ${data.sent_to} ✉️`, 'success');
                           } else {

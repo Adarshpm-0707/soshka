@@ -6,6 +6,8 @@ import Input from '../../components/Reusable/Input';
 import Button from '../../components/Reusable/Button';
 import { showToast } from '../../components/Reusable/Toast';
 import { adminLogService } from '../../services/adminLogService';
+import { couponService } from '../../services/couponService';
+import ProductCouponSection from '../../components/Admin/ProductCouponSection';
 
 const AdminEditProductPage = () => {
   const { id } = useParams();
@@ -15,6 +17,8 @@ const AdminEditProductPage = () => {
   const [fetching, setFetching] = useState(true);
   const [categories, setCategories] = useState([]);
   const [offers, setOffers] = useState([]);
+  const [selectedCouponIds, setSelectedCouponIds] = useState([]);
+
 
   // Form Fields
   const [name, setName] = useState('');
@@ -132,6 +136,7 @@ const AdminEditProductPage = () => {
           setSku(prodData.sku ?? '');
           const loadedSizes = prodData.sizes || [];
           setSizes(loadedSizes);
+          setSelectedCouponIds(prodData.applicable_coupon_ids || []);
           setIsBestSeller(prodData.is_best_seller || false);
           setAvailableSizes(prev => {
             const merged = [...prev];
@@ -252,10 +257,11 @@ const AdminEditProductPage = () => {
 
       if (error) throw error;
 
+      await couponService.syncProductCoupons(id, selectedCouponIds);
+
       // Log update in admin_logs
       await adminLogService.logAction('updated_product', 'products', id, {
         name,
-        brand,
         sku,
         price: originalPrice,
         offer_price: offerPrice,
@@ -467,7 +473,14 @@ const AdminEditProductPage = () => {
           </div>
         </div>
 
-        {/* Section 2: Detailed Text Information */}
+        {/* Section 2: Product Coupon Assignment */}
+        <ProductCouponSection
+          selectedCouponIds={selectedCouponIds}
+          setSelectedCouponIds={setSelectedCouponIds}
+          disabled={loading}
+        />
+
+        {/* Section 3: Detailed Text Information */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-3xl p-6 shadow-sm space-y-4">
           <div>
             <h3 className="font-bold text-sm tracking-wide uppercase text-slate-800 dark:text-slate-200">Detailed Narrative</h3>

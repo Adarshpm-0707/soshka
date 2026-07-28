@@ -32,51 +32,38 @@ export default defineConfig(({ mode }) => {
         name: 'custom-api-middleware',
         configureServer(server) {
           server.middlewares.use(async (req, res, next) => {
-            console.log(`[Dev Server Middleware] Incoming request: ${req.method} ${req.url}`);
-            if (req.url.startsWith('/api/create-order')) {
+            const url = req.url ? req.url.split('?')[0] : '';
+            if (url.startsWith('/api/')) {
+              console.log(`[Dev Server Middleware] Incoming request: ${req.method} ${req.url}`);
               try {
-                await createOrderHandler(req, res);
+                if (url.startsWith('/api/create-order')) {
+                  await createOrderHandler(req, res);
+                  return;
+                }
+                if (url.startsWith('/api/verify-payment')) {
+                  await verifyPaymentHandler(req, res);
+                  return;
+                }
+                if (url.startsWith('/api/contact')) {
+                  await contactHandler(req, res);
+                  return;
+                }
+                if (url.startsWith('/api/shiprocket-pickup')) {
+                  await shiprocketPickupHandler(req, res);
+                  return;
+                }
+                if (url.startsWith('/api/send-order-confirmation')) {
+                  await sendOrderConfirmationHandler(req, res);
+                  return;
+                }
               } catch (err) {
-                res.writeHead(500, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: err.message }));
+                console.error(`[Dev Server Middleware Error] ${url}:`, err);
+                if (!res.headersSent) {
+                  res.writeHead(500, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ error: err.message || 'Internal API Server Error' }));
+                }
+                return;
               }
-              return;
-            }
-            if (req.url.startsWith('/api/verify-payment')) {
-              try {
-                await verifyPaymentHandler(req, res);
-              } catch (err) {
-                res.writeHead(500, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: err.message }));
-              }
-              return;
-            }
-            if (req.url.startsWith('/api/contact')) {
-              try {
-                await contactHandler(req, res);
-              } catch (err) {
-                res.writeHead(500, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: err.message }));
-              }
-              return;
-            }
-            if (req.url.startsWith('/api/shiprocket-pickup')) {
-              try {
-                await shiprocketPickupHandler(req, res);
-              } catch (err) {
-                res.writeHead(500, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: err.message }));
-              }
-              return;
-            }
-            if (req.url.startsWith('/api/send-order-confirmation')) {
-              try {
-                await sendOrderConfirmationHandler(req, res);
-              } catch (err) {
-                res.writeHead(500, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: err.message }));
-              }
-              return;
             }
             next();
           });

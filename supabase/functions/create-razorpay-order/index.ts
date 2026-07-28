@@ -41,20 +41,21 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Create Supabase client with user's auth token to verify identity
-    const supabaseUser = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    // Verify user is authenticated
-    const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized — invalid session" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    let userId = null;
+    if (authHeader && authHeader !== 'Bearer null' && authHeader !== 'Bearer undefined') {
+      try {
+        const supabaseUser = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_ANON_KEY")!,
+          { global: { headers: { Authorization: authHeader } } }
+        );
+        const { data: { user } } = await supabaseUser.auth.getUser();
+        if (user) {
+          userId = user.id;
+        }
+      } catch (_) {
+        userId = null;
+      }
     }
 
     // Create service-role client for DB writes (bypasses RLS)
@@ -148,7 +149,7 @@ Deno.serve(async (req: Request) => {
       .from("orders")
       .insert({
         id: customOrderId,
-        user_id: user.id,
+        user_id: userId,
         items: enrichedItems,
         subtotal,
         shipping_fee,

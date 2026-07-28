@@ -22,6 +22,7 @@ const AdminAddProductPage = lazy(() => import("../pages/Admin/AdminAddProductPag
 const AdminEditProductPage = lazy(() => import("../pages/Admin/AdminEditProductPage"));
 const AdminCategoriesPage = lazy(() => import("../pages/Admin/AdminCategoriesPage"));
 const AdminOffersPage = lazy(() => import("../pages/Admin/AdminOffersPage"));
+const AdminCouponsPage = lazy(() => import("../pages/Admin/AdminCouponsPage"));
 const AdminOrdersPage = lazy(() => import("../pages/Admin/AdminOrdersPage"));
 const AdminCustomersPage = lazy(() => import("../pages/Admin/ManageCustomersPage"));
 const AdminReviewsPage = lazy(() => import("../pages/Admin/AdminReviewsPage"));
@@ -152,6 +153,7 @@ const AppRoutes = () => {
             <Route path="products/:id" element={<AdminEditProductPage />} />
             <Route path="categories" element={<AdminCategoriesPage />} />
             <Route path="offers" element={<AdminOffersPage />} />
+            <Route path="coupons" element={<AdminCouponsPage />} />
             <Route path="orders" element={<AdminOrdersPage />} />
             <Route path="customers" element={<AdminCustomersPage />} />
             <Route path="reviews" element={<AdminReviewsPage />} />

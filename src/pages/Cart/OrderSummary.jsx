@@ -4,15 +4,24 @@ import { formatCurrency } from '../../utils/formatCurrency';
 import { useCart } from '../../hooks/useCart';
 import { SHIPPING_CHARGES, FREE_SHIPPING_THRESHOLD, TAX_RATE } from '../../utils/constants';
 import Button from '../../components/Reusable/Button';
+import CouponInput from '../../components/Reusable/CouponInput';
 import { showToast } from '../../components/Reusable/Toast';
 
 const OrderSummary = ({ showCheckoutBtn = true }) => {
-  const { cartTotal, cartItems } = useCart();
+  const {
+    cartTotal,
+    cartItems,
+    appliedCoupon,
+    discountAmount,
+    finalTotal,
+    setAppliedCoupon,
+    removeCoupon
+  } = useCart();
   const navigate = useNavigate();
 
   const shippingCost = 0;
   const taxCost = 0;
-  const grandTotal = cartTotal;
+  const grandTotal = finalTotal;
 
   // Calculate total savings from active offers
   const totalSavings = cartItems.reduce((acc, item) => {
@@ -34,17 +43,47 @@ const OrderSummary = ({ showCheckoutBtn = true }) => {
     navigate('/checkout');
   };
 
+  const handleCouponApply = (coupon, discount) => {
+    setAppliedCoupon(coupon);
+  };
+
+  const handleCouponRemove = () => {
+    removeCoupon();
+  };
+
   return (
     <div className="bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200/60 dark:border-slate-800 shadow-sm space-y-4">
       <h3 className="font-bold text-slate-800 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-3 font-sans tracking-wide">
         Order Summary
       </h3>
 
-      <div className="space-y-2.5 text-sm font-semibold">
+      {/* Coupon Input Section */}
+      <div className="py-1">
+        <CouponInput
+          appliedCoupon={appliedCoupon}
+          onApply={handleCouponApply}
+          onRemove={handleCouponRemove}
+        />
+      </div>
+
+      <div className="space-y-2.5 text-sm font-semibold border-t border-slate-100 dark:border-slate-800 pt-3">
         <div className="flex justify-between text-slate-500 dark:text-slate-400">
           <span>Subtotal</span>
           <span className="text-slate-800 dark:text-white">{formatCurrency(cartTotal)}</span>
         </div>
+
+        {appliedCoupon && discountAmount > 0 && (
+          <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-bold">
+            <span className="flex items-center space-x-1">
+              <span>Discount</span>
+              <span className="bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[10px] font-black px-1.5 py-0.5 rounded uppercase">
+                ({appliedCoupon.code})
+              </span>
+            </span>
+            <span>- {formatCurrency(discountAmount)}</span>
+          </div>
+        )}
+
         {totalSavings > 0 && (
           <div className="flex justify-between text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/10 dark:border-emerald-500/20 px-3 py-2 rounded-xl text-xs font-black">
             <span>You Save</span>
@@ -66,7 +105,7 @@ const OrderSummary = ({ showCheckoutBtn = true }) => {
       </div>
 
       <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-4 text-base font-extrabold text-slate-900 dark:text-white">
-        <span>Grand Total</span>
+        <span>Total</span>
         <span>{formatCurrency(grandTotal)}</span>
       </div>
 

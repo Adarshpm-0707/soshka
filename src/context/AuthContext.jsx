@@ -6,8 +6,36 @@ export const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [isGuest, setIsGuest] = useState(() => {
+    try {
+      return sessionStorage.getItem('soshka_is_guest') === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Guest actions
+  const continueAsGuest = () => {
+    try {
+      sessionStorage.setItem('soshka_is_guest', 'true');
+    } catch (e) {
+      console.error('Failed to set guest session:', e);
+    }
+    setIsGuest(true);
+    setError(null);
+    return true;
+  };
+
+  const exitGuestMode = () => {
+    try {
+      sessionStorage.removeItem('soshka_is_guest');
+    } catch (e) {
+      console.error('Failed to remove guest session:', e);
+    }
+    setIsGuest(false);
+  };
 
   // Keep a ref to the current user state to avoid stale closures in the useEffect subscription callback
   const currentUserRef = useRef(null);
@@ -134,6 +162,7 @@ export const AuthProvider = ({ children }) => {
       const data = await authService.signIn({ email, password });
       setUser(data.user);
       if (data.user) {
+        exitGuestMode();
         await fetchProfile(data.user.id, data.user.email);
       }
       return data;
@@ -153,6 +182,7 @@ export const AuthProvider = ({ children }) => {
       await authService.signOut();
       setUser(null);
       setProfile(null);
+      exitGuestMode();
     } catch (err) {
       setError(err.message);
       throw err;
@@ -166,6 +196,7 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     setError(null);
     try {
+      exitGuestMode();
       await authService.signInWithGoogle();
     } catch (err) {
       setError(err.message);
@@ -180,6 +211,7 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     setError(null);
     try {
+      exitGuestMode();
       await authService.signInWithApple();
     } catch (err) {
       setError(err.message);
@@ -229,11 +261,14 @@ export const AuthProvider = ({ children }) => {
   const value = {
     user,
     profile,
+    isGuest,
     loading,
     error,
     login,
     register,
     logout,
+    continueAsGuest,
+    exitGuestMode,
     loginWithGoogle,
     loginWithApple,
     updateProfile,

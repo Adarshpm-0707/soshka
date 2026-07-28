@@ -4,14 +4,14 @@ import { useAuth } from '../hooks/useAuth';
 import Loader from '../components/Reusable/Loader';
 
 const ProtectedRoute = ({ children }) => {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, isGuest, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
     return <Loader fullScreen />;
   }
 
-  if (!user) {
+  if (!user && !isGuest) {
     // Save the location the user was trying to access so we can redirect them back after login
     return <Navigate to="/login" state={{ from: location }} replace />;
   }

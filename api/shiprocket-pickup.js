@@ -1,6 +1,7 @@
 import pg from 'pg';
 import fs from 'fs';
 import path from 'path';
+import { createClient } from '@supabase/supabase-js';
 
 const { Client } = pg;
 
@@ -68,8 +69,8 @@ export default async function handler(req, res) {
 
   const email = process.env.SHIPROCKET_EMAIL;
   const password = process.env.SHIPROCKET_PASSWORD;
-  const pickupLocation = process.env.SHIPROCKET_PICKUP_LOCATION || 'Primary';
-  const channelId = process.env.SHIPROCKET_CHANNEL_ID;
+  const pickupLocation = process.env.SHIPROCKET_PICKUP_LOCATION || 'warehouse';
+  const channelId = process.env.SHIPROCKET_CHANNEL_ID || '11188787';
 
   if (!email || !password || email === 'your-shiprocket-email@domain.com') {
     console.warn('Shiprocket credentials are missing or default placeholders.');
@@ -88,6 +89,25 @@ export default async function handler(req, res) {
 
     const { shipping_address, items, total, id: orderUuid } = order;
 
+    // Filter out test orders
+    const orderEmail = (customerEmail || shipping_address?.email || '').toLowerCase();
+    const orderName = (shipping_address?.name || '').toLowerCase();
+    const orderIdStr = String(orderUuid).toLowerCase();
+
+    if (
+      orderEmail.includes('test@') ||
+      orderEmail.includes('example.com') ||
+      orderName.includes('test customer') ||
+      orderIdStr.includes('test')
+    ) {
+      console.log(`[Shiprocket] Excluding test order ${orderUuid} (${orderEmail}) from Shiprocket synchronization.`);
+      return sendResponse(res, 200, {
+        success: false,
+        skipped: true,
+        error: 'Test orders are excluded from Shiprocket synchronization.'
+      });
+    }
+
     // 1. Authenticate with Shiprocket
     console.log('Authenticating with Shiprocket...');
     const authRes = await fetch('https://apiv2.shiprocket.in/v1/external/auth/login', {
@@ -97,8 +117,12 @@ export default async function handler(req, res) {
     });
 
     if (!authRes.ok) {
-      const authError = await authRes.json();
-      throw new Error(`Shiprocket auth failed: ${authError.message || authRes.statusText}`);
+      const authError = await authRes.json().catch(() => ({}));
+      const errMsg = authError.message || (typeof authError.errors === 'string' ? authError.errors : '') || authRes.statusText;
+      if (errMsg.toLowerCase().includes('access forbidden') || authRes.status === 403) {
+        throw new Error(`Shiprocket Auth Failed: Access forbidden (Invalid email or password). Please verify your password on app.shiprocket.in and update SHIPROCKET_PASSWORD in .env.`);
+      }
+      throw new Error(`Shiprocket Auth Failed: ${errMsg}`);
     }
 
     const { token } = await authRes.json();
@@ -123,9 +147,13 @@ export default async function handler(req, res) {
       selling_price: parseFloat(item.price || '0')
     }));
 
+    const displayOrderId = orderUuid.startsWith('00000000-0000-0000-0000-')
+      ? `SOSHKA-${orderUuid.split('-').pop()}`
+      : `SOSHKA-${orderUuid.slice(0, 8).toUpperCase()}`;
+
     // Build the Shiprocket Adhoc Order payload
     const payload = {
-      order_id: orderUuid.slice(0, 20), // Max 20 characters for typical Shiprocket ID
+      order_id: displayOrderId,
       order_date: orderDate,
       pickup_location: pickupLocation,
       channel_id: channelId ? parseInt(channelId, 10) : undefined,
@@ -192,6 +220,36 @@ export default async function handler(req, res) {
       throw new Error(`Shiprocket did not return a shipment ID. Response: ${JSON.stringify(createData)}`);
     }
 
+    // 3.5 Assign AWB Code
+    let warning = null;
+    if (!awbCode && shipmentId) {
+      console.log(`Assigning AWB code for shipment: ${shipmentId}...`);
+      try {
+        const awbRes = await fetch('https://apiv2.shiprocket.in/v1/external/courier/assign/awb', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ shipment_id: shipmentId })
+        });
+        const awbData = await awbRes.json();
+        console.log('Shiprocket AWB assignment response:', awbData);
+        if (awbData.response?.data?.awb_code) {
+          awbCode = awbData.response.data.awb_code;
+        } else if (awbData.awb_code) {
+          awbCode = awbData.awb_code;
+        } else {
+          const errMsg = awbData.message || awbData.response?.data?.awb_assign_error || '';
+          if (errMsg.toLowerCase().includes('recharge') || errMsg.toLowerCase().includes('wallet')) {
+            warning = 'Please recharge your Shiprocket wallet (minimum ₹100 required to assign AWB courier).';
+          }
+        }
+      } catch (awbErr) {
+        console.warn('Shiprocket AWB assignment warning:', awbErr);
+      }
+    }
+
     // 4. Schedule courier pickup
     console.log(`Scheduling pickup for shipment: ${shipmentId}...`);
     const pickupRes = await fetch('https://apiv2.shiprocket.in/v1/external/courier/generate/pickup', {
@@ -215,30 +273,62 @@ export default async function handler(req, res) {
 
     // 5. Save shipment metadata in Supabase
     console.log('Saving shipment details in local database...');
-    const pgConnectionString = process.env.DATABASE_URL;
-    if (!pgConnectionString) {
-      throw new Error('DATABASE_URL is not configured in the environment.');
+    let dbUpdated = false;
+
+    // Try Supabase JS client
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://bmbegjxfkpyenndfbcdj.supabase.co';
+    const supabaseKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+    if (supabaseUrl && supabaseKey) {
+      try {
+        const supabase = createClient(supabaseUrl, supabaseKey);
+        const { error: sbErr } = await supabase
+          .from('orders')
+          .update({
+            shiprocket_shipment_id: String(shipmentId),
+            shiprocket_awb: String(awbCode),
+            status: 'processing',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', orderUuid);
+
+        if (!sbErr) {
+          dbUpdated = true;
+          console.log('Order shipment metadata updated via Supabase client successfully!');
+        } else {
+          console.warn('Supabase client update warning:', sbErr.message);
+        }
+      } catch (sbEx) {
+        console.warn('Supabase client exception:', sbEx.message);
+      }
     }
-    const dbClient = new Client({
-      connectionString: pgConnectionString,
-      ssl: { rejectUnauthorized: false }
-    });
 
-    await dbClient.connect();
-    
-    await dbClient.query(`
-      UPDATE public.orders
-      SET shiprocket_shipment_id = $1, shiprocket_awb = $2
-      WHERE id = $3
-    `, [String(shipmentId), String(awbCode), orderUuid]);
-
-    await dbClient.end();
-    console.log('Order shipment metadata updated in database successfully!');
+    // Fallback to PG client if needed
+    if (!dbUpdated && process.env.DATABASE_URL) {
+      try {
+        const dbClient = new Client({
+          connectionString: process.env.DATABASE_URL,
+          ssl: { rejectUnauthorized: false }
+        });
+        await dbClient.connect();
+        await dbClient.query(`
+          UPDATE public.orders
+          SET shiprocket_shipment_id = $1, shiprocket_awb = $2, status = 'processing', updated_at = NOW()
+          WHERE id = $3
+        `, [String(shipmentId), String(awbCode), orderUuid]);
+        await dbClient.end();
+        dbUpdated = true;
+        console.log('Order shipment metadata updated via PG client successfully!');
+      } catch (pgErr) {
+        console.error('PG client update error:', pgErr.message);
+      }
+    }
 
     return sendResponse(res, 200, {
       success: true,
       shipment_id: shipmentId,
-      awb_code: awbCode
+      awb_code: awbCode,
+      warning: warning
     });
 
   } catch (error) {

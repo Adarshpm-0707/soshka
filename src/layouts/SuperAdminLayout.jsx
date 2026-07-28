@@ -16,7 +16,8 @@ import {
   X,
   DollarSign,
   Star,
-  RefreshCw
+  RefreshCw,
+  Ticket
 } from 'lucide-react';
 
 const SuperAdminLayout = () => {
@@ -48,6 +49,7 @@ const SuperAdminLayout = () => {
     { label: 'Manage Admins', path: '/superadmin/admins', icon: Shield },
     { label: 'Manage Customers', path: '/superadmin/customers', icon: Users },
     { label: 'Products', path: '/superadmin/products', icon: ShoppingBag },
+    { label: 'Coupons', path: '/admin/coupons', icon: Ticket },
     { label: 'Orders Registry', path: '/superadmin/orders', icon: Package },
     { label: 'Profit & Loss', path: '/superadmin/pandl', icon: DollarSign },
     { label: 'Store Reviews', path: '/superadmin/reviews', icon: Star },
@@ -58,10 +60,10 @@ const SuperAdminLayout = () => {
     <div className="flex flex-col h-screen bg-slate-950 text-slate-100 transition-colors duration-300">
       
       {/* Mobile Top Header */}
-      <header className="flex items-center justify-between px-4 py-3 bg-[#0c0c0d] border-b border-[#1c1c1e] md:hidden z-20 shrink-0">
+      <header className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800 md:hidden z-20 shrink-0">
         <div className="flex items-center space-x-2">
-          <Crown className="text-[#ff2a85] h-6 w-6" />
-          <span className="text-base font-black tracking-wide bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">Soshka Super</span>
+          <Crown className="text-pink-500 h-6 w-6" />
+          <span className="text-base font-bold tracking-wide">SuperAdmin Console</span>
         </div>
         <div className="flex items-center space-x-3">
           <button
@@ -85,19 +87,19 @@ const SuperAdminLayout = () => {
         {isMobileMenuOpen && (
           <div 
             onClick={() => setIsMobileMenuOpen(false)}
-            className="fixed inset-0 bg-black/60 z-30 md:hidden"
+            className="fixed inset-0 bg-black/50 z-30 md:hidden"
           />
         )}
 
         {/* Super Admin Sidebar */}
-        <aside className={`fixed inset-y-0 left-0 w-64 bg-[#0c0c0d] border-r border-[#1c1c1e] flex flex-col justify-between p-4 shadow-sm z-40 transition-transform duration-300 md:static md:translate-x-0 ${
+        <aside className={`fixed inset-y-0 left-0 w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between p-4 shadow-sm z-40 transition-transform duration-300 md:static md:translate-x-0 ${
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}>
           <div>
             <div className="flex items-center justify-between px-2 py-4 mb-6">
               <div className="flex items-center space-x-2">
-                <Crown className="text-[#ff2a85] h-8 w-8" />
-                <span className="text-xl font-black font-sans tracking-wide bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">Soshka Super</span>
+                <Crown className="text-pink-500 h-8 w-8" />
+                <span className="text-xl font-bold font-sans tracking-wide">SuperAdmin</span>
               </div>
               <button
                 onClick={() => setIsMobileMenuOpen(false)}
@@ -118,21 +120,21 @@ const SuperAdminLayout = () => {
                     onClick={() => setIsMobileMenuOpen(false)}
                     className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition duration-200 ${
                       isActive 
-                        ? 'bg-[#ff2a85]/10 text-[#ff2a85] font-bold border border-[#ff2a85]/20' 
-                        : 'text-slate-400 hover:text-white hover:bg-white/5'
-                    }`}
+                        ? 'bg-pink-950/30 text-pink-400 font-bold border border-pink-500/20' 
+                        : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                     }`}
                   >
-                    <Icon size={18} className={isActive ? 'text-[#ff2a85]' : 'text-slate-500'} />
+                    <Icon size={18} className={isActive ? 'text-pink-500' : 'text-slate-400'} />
                     <span>{item.label}</span>
                   </Link>
                 );
               })}
 
-              <div className="h-[1px] bg-[#1c1c1e] my-4" />
+              <div className="h-[1px] bg-slate-800 my-4" />
 
               <button
                 onClick={() => window.location.reload()}
-                className="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-400 hover:bg-[#1c1c1e] hover:text-white transition duration-200 w-full text-left"
+                className="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition duration-200 w-full text-left"
               >
                 <RefreshCw size={18} className="text-slate-400" />
                 <span>Refresh Panel</span>
@@ -140,36 +142,36 @@ const SuperAdminLayout = () => {
 
               <Link 
                 to="/" 
-                className="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-500 hover:text-slate-350 hover:bg-white/5 transition duration-200"
+                className="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition duration-200"
               >
-                <ArrowLeft size={18} className="text-slate-500" />
+                <ArrowLeft size={18} className="text-slate-400" />
                 <span>Back to Store</span>
               </Link>
             </nav>
           </div>
 
           {/* Footer actions */}
-          <div className="border-t border-[#1c1c1e] pt-4 px-2">
+          <div className="border-t border-slate-800 pt-4 px-2">
             <div className="flex items-center space-x-3 mb-4">
               {profile?.avatar_url ? (
                 <img 
                   src={profile.avatar_url} 
                   alt="Avatar" 
-                  className="h-9 w-9 rounded-full object-cover border border-[#1c1c1e]" 
+                  className="h-9 w-9 rounded-full object-cover border border-pink-500/30" 
                 />
               ) : (
-                <div className="h-9 w-9 rounded-full bg-slate-800 flex items-center justify-center text-sm font-bold text-slate-300 border border-[#1c1c1e] uppercase">
+                <div className="h-9 w-9 rounded-full bg-pink-950/50 flex items-center justify-center text-sm font-bold text-pink-400 border border-pink-500/30 uppercase">
                   {(profile?.name || 'S').charAt(0)}
                 </div>
               )}
               <div className="overflow-hidden">
-                <p className="text-sm font-semibold truncate">{profile?.name || 'Super Admin'}</p>
-                <p className="text-xs text-slate-500 truncate text-ellipsis">{user?.email?.replace(/\+(admin|superadmin)@/, '@')}</p>
+                <p className="text-sm font-semibold truncate text-slate-200">{profile?.name || 'Super Admin'}</p>
+                <p className="text-xs text-slate-400 truncate">{user?.email}</p>
               </div>
             </div>
             <Link 
               to="/superadmin/logout"
-              className="flex items-center space-x-2 w-full text-left text-red-500 hover:bg-red-950/20 px-3 py-2.5 rounded-lg transition text-sm font-semibold"
+              className="flex items-center space-x-2 w-full text-left text-red-400 hover:bg-red-950/30 px-3 py-2.5 rounded-lg transition text-sm font-semibold"
             >
               <LogOut size={16} />
               <span>Sign Out</span>
@@ -177,8 +179,8 @@ const SuperAdminLayout = () => {
           </div>
         </aside>
 
-        {/* Main Admin Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-950">
+        {/* Main SuperAdmin Content */}
+        <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <Outlet />
         </main>
       </div>

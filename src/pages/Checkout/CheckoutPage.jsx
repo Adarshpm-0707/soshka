@@ -11,12 +11,16 @@ import { showToast } from '../../components/Reusable/Toast';
 const CheckoutPage = () => {
   const { cartItems, loading } = useCart();
   const navigate = useNavigate();
+  const hasAlertedRef = React.useRef(false);
 
   // Redirect to cart if empty
   useEffect(() => {
     if (!loading && cartItems.length === 0) {
-      showToast('Your cart is empty. Cannot checkout.', 'error');
-      navigate('/cart');
+      if (!hasAlertedRef.current) {
+        hasAlertedRef.current = true;
+        showToast('Your cart is empty. Cannot checkout.', 'error');
+      }
+      navigate('/cart', { replace: true });
     }
   }, [cartItems, loading, navigate]);
 

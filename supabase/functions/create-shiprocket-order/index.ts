@@ -65,11 +65,29 @@ Deno.serve(async (req: Request) => {
 
     const { shipping_address, items, total, created_at } = order;
 
+    // Filter out test orders
+    const orderEmail = ((shipping_address as any)?.email || "").toLowerCase();
+    const orderName = ((shipping_address as any)?.name || "").toLowerCase();
+    const orderIdStr = String(order_id).toLowerCase();
+
+    if (
+      orderEmail.includes("test@") ||
+      orderEmail.includes("example.com") ||
+      orderName.includes("test customer") ||
+      orderIdStr.includes("test")
+    ) {
+      console.log(`Excluding test order ${order_id} (${orderEmail}) from Shiprocket.`);
+      return new Response(
+        JSON.stringify({ success: false, skipped: true, error: "Test orders are excluded from Shiprocket." }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // === AUTHENTICATE WITH SHIPROCKET ===
     const srEmail = Deno.env.get("SHIPROCKET_EMAIL")!;
     const srPassword = Deno.env.get("SHIPROCKET_PASSWORD")!;
-    const pickupLocation = Deno.env.get("SHIPROCKET_PICKUP_LOCATION") || "Primary";
-    const channelId = Deno.env.get("SHIPROCKET_CHANNEL_ID");
+    const pickupLocation = Deno.env.get("SHIPROCKET_PICKUP_LOCATION") || "warehouse";
+    const channelId = Deno.env.get("SHIPROCKET_CHANNEL_ID") || "11188787";
 
     const authRes = await fetch("https://apiv2.shiprocket.in/v1/external/auth/login", {
       method: "POST",
@@ -106,8 +124,8 @@ Deno.serve(async (req: Request) => {
     const addr = shipping_address as any;
 
     const displayOrderId = order_id.startsWith("00000000-0000-0000-0000-")
-      ? order_id.split("-").pop()!
-      : order_id.slice(0, 20);
+      ? `SOSHKA-${order_id.split("-").pop()!}`
+      : `SOSHKA-${order_id.slice(0, 8).toUpperCase()}`;
 
     const payload = {
       order_id: displayOrderId,
@@ -174,6 +192,33 @@ Deno.serve(async (req: Request) => {
 
     if (!shipmentId) {
       throw new Error(`Shiprocket did not return a shipment ID. Response: ${JSON.stringify(createData)}`);
+    }
+
+    // === ASSIGN AWB CODE ===
+    if (!awbCode && shipmentId) {
+      console.log(`Assigning AWB code for shipment: ${shipmentId}...`);
+      try {
+        const awbRes = await fetch(
+          "https://apiv2.shiprocket.in/v1/external/courier/assign/awb",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ shipment_id: parseInt(shipmentId, 10) }),
+          }
+        );
+        const awbData = await awbRes.json();
+        console.log("Shiprocket AWB assignment response:", JSON.stringify(awbData));
+        if (awbData.response?.data?.awb_code) {
+          awbCode = String(awbData.response.data.awb_code);
+        } else if (awbData.awb_code) {
+          awbCode = String(awbData.awb_code);
+        }
+      } catch (awbErr) {
+        console.warn("Shiprocket AWB assignment warning:", awbErr);
+      }
     }
 
     // === SCHEDULE PICKUP ===

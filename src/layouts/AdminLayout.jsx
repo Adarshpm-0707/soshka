@@ -13,7 +13,8 @@ import {
   Menu,
   X,
   Star,
-  RefreshCw
+  RefreshCw,
+  Ticket
 } from 'lucide-react';
 
 const AdminLayout = () => {
@@ -47,6 +48,7 @@ const AdminLayout = () => {
     { label: 'Products', path: '/admin/products', icon: ShoppingBag },
     { label: 'Categories', path: '/admin/categories', icon: Layers },
     { label: 'Offers', path: '/admin/offers', icon: BadgePercent },
+    { label: 'Coupons', path: '/admin/coupons', icon: Ticket },
     { label: 'Orders', path: '/admin/orders', icon: Package },
     { label: 'Customers', path: '/admin/customers', icon: Users },
     { label: 'Store Reviews', path: '/admin/reviews', icon: Star },

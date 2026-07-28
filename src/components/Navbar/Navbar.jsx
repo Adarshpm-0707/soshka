@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Sun, Moon, Menu, X, Heart, User, LogOut, ChevronDown, LayoutDashboard, Search, ShoppingBag } from 'lucide-react';
+import { Sun, Moon, Menu, X, Heart, User, UserCheck, LogOut, ChevronDown, LayoutDashboard, Search, ShoppingBag } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useWishlist } from '../../hooks/useWishlist';
 import NavLinks from './NavLinks';
 import CartIcon from './CartIcon';
 
 const Navbar = () => {
-  const { user, profile, logout, isAdmin, isSuperAdmin } = useAuth();
+  const { user, profile, logout, isGuest, exitGuestMode, isAdmin, isSuperAdmin } = useAuth();
   const { wishlistItems } = useWishlist();
   const navigate = useNavigate();
 
@@ -158,7 +158,7 @@ const Navbar = () => {
             {/* Divider */}
             <div className="hidden lg:block w-px h-6 bg-white/15 mx-1" />
 
-            {/* Profile */}
+            {/* Profile / Guest Status */}
             <div className="hidden lg:block relative" ref={dropdownRef}>
               {user ? (
                 <button
@@ -184,6 +184,18 @@ const Navbar = () => {
                     className={`text-slate-400 group-hover:text-white transition-all duration-200 ${profileDropdownOpen ? 'rotate-180' : ''}`}
                   />
                 </button>
+              ) : isGuest ? (
+                <button
+                  onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-pink-500/40 bg-pink-500/10 hover:bg-pink-500/20 text-xs font-bold text-[#ff2a85] transition-all duration-200 group"
+                >
+                  <UserCheck size={14} className="text-[#ff2a85]" />
+                  <span className="text-xs font-bold text-white">Guest</span>
+                  <ChevronDown
+                    size={13}
+                    className={`text-slate-400 group-hover:text-white transition-all duration-200 ${profileDropdownOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
               ) : (
                 <Link
                   to="/login"
@@ -194,10 +206,9 @@ const Navbar = () => {
                 </Link>
               )}
 
-              {/* Profile Dropdown */}
+              {/* User Profile Dropdown */}
               {profileDropdownOpen && user && (
-                <div className="absolute right-0 top-full mt-2.5 w-52 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-2xl animate-slide-up z-50 bg-[#0c0c0d]"
-                >
+                <div className="absolute right-0 top-full mt-2.5 w-52 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-2xl animate-slide-up z-50 bg-[#0c0c0d]">
                   {/* Header */}
                   <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 bg-[#121214]">
                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-0.5">Signed in as</p>
@@ -250,6 +261,50 @@ const Navbar = () => {
                     >
                       <LogOut size={14} />
                       Sign Out
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Guest Profile Dropdown */}
+              {profileDropdownOpen && !user && isGuest && (
+                <div className="absolute right-0 top-full mt-2.5 w-56 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-2xl animate-slide-up z-50 bg-[#0c0c0d]">
+                  <div className="px-4 py-3 border-b border-slate-800 bg-[#121214]">
+                    <p className="text-[10px] text-[#ff2a85] font-black uppercase tracking-widest mb-0.5">Guest Mode</p>
+                    <p className="text-sm font-bold truncate text-white">Guest Purchasing</p>
+                    <p className="text-[10px] text-slate-400 truncate mt-0.5">No password required</p>
+                  </div>
+
+                  <div className="py-1.5">
+                    <Link
+                      to="/checkout"
+                      onClick={() => setProfileDropdownOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 text-xs font-semibold text-rose-100 hover:text-white hover:bg-white/10 transition-all duration-150"
+                    >
+                      <ShoppingBag size={14} />
+                      Proceed to Checkout
+                    </Link>
+                    <Link
+                      to="/login"
+                      onClick={() => setProfileDropdownOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 text-xs font-semibold text-rose-100 hover:text-white hover:bg-white/10 transition-all duration-150"
+                    >
+                      <User size={14} />
+                      Sign In / Register
+                    </Link>
+                  </div>
+
+                  <div className="border-t border-slate-800 py-1.5">
+                    <button
+                      onClick={() => {
+                        exitGuestMode();
+                        setProfileDropdownOpen(false);
+                        navigate('/login');
+                      }}
+                      className="flex items-center gap-3 w-full px-4 py-2.5 text-xs font-semibold text-[#ff2a85] hover:bg-white/10 transition-all duration-150"
+                    >
+                      <LogOut size={14} />
+                      Exit Guest Mode
                     </button>
                   </div>
                 </div>
@@ -423,6 +478,49 @@ const Navbar = () => {
                     >
                       <LogOut size={13} />
                       Sign Out
+                    </button>
+                  </div>
+                ) : isGuest ? (
+                  <div className="rounded-2xl bg-pink-500/10 p-4 border border-pink-500/20">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="h-10 w-10 rounded-full bg-[#ff2a85] flex items-center justify-center text-sm font-bold text-white shadow-md">
+                        <UserCheck size={18} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-white truncate">Guest User</p>
+                        <p className="text-[11px] text-pink-300 font-semibold truncate">Purchasing as Guest</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                      <Link
+                        to="/checkout"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-white/10 text-xs font-bold text-white hover:bg-white/20 transition-all text-center"
+                      >
+                        <ShoppingBag size={13} />
+                        Checkout
+                      </Link>
+                      <Link
+                        to="/login"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-white/10 text-xs font-bold text-white hover:bg-white/20 transition-all text-center"
+                      >
+                        <User size={13} />
+                        Sign In
+                      </Link>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        exitGuestMode();
+                        setMobileMenuOpen(false);
+                        navigate('/login');
+                      }}
+                      className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-rose-500/20 bg-rose-500/10 hover:bg-rose-500/20 text-xs font-bold text-[#ff2a85] transition-all"
+                    >
+                      <LogOut size={13} />
+                      Exit Guest Mode
                     </button>
                   </div>
                 ) : (

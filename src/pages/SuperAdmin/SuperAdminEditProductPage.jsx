@@ -6,6 +6,8 @@ import { ArrowLeft, Upload, Trash2, Loader2, Crown, Plus } from 'lucide-react';
 import Input from '../../components/Reusable/Input';
 import Button from '../../components/Reusable/Button';
 import { showToast } from '../../components/Reusable/Toast';
+import { couponService } from '../../services/couponService';
+import ProductCouponSection from '../../components/Admin/ProductCouponSection';
 
 const SuperAdminEditProductPage = () => {
   const { id } = useParams();
@@ -15,6 +17,8 @@ const SuperAdminEditProductPage = () => {
   const [fetching, setFetching] = useState(true);
   const [categories, setCategories] = useState([]);
   const [offers, setOffers] = useState([]);
+  const [selectedCouponIds, setSelectedCouponIds] = useState([]);
+
 
   // Form Fields
   const [name, setName] = useState('');
@@ -134,6 +138,7 @@ const SuperAdminEditProductPage = () => {
           setSku(prodData.sku ?? '');
           const loadedSizes = prodData.sizes || [];
           setSizes(loadedSizes);
+          setSelectedCouponIds(prodData.applicable_coupon_ids || []);
           setIsBestSeller(prodData.is_best_seller || false);
           setAvailableSizes(prev => {
             const merged = [...prev];
@@ -255,10 +260,11 @@ const SuperAdminEditProductPage = () => {
 
       if (error) throw error;
 
+      await couponService.syncProductCoupons(id, selectedCouponIds);
+
       // Log the superadmin edit action
       await adminLogService.logAction('updated_product', 'products', id, {
         name,
-        brand,
         sku,
         price: originalPrice,
         offer_price: offerPrice,
@@ -523,7 +529,14 @@ const SuperAdminEditProductPage = () => {
           </div>
         </div>
 
-        {/* Section 2: Detailed Text Information */}
+        {/* Section 2: Product Coupon Assignment */}
+        <ProductCouponSection
+          selectedCouponIds={selectedCouponIds}
+          setSelectedCouponIds={setSelectedCouponIds}
+          disabled={loading}
+        />
+
+        {/* Section 3: Detailed Text Information */}
         <div className="bg-[#0c0c0d] border border-[#1c1c1e] rounded-3xl p-6 shadow-sm space-y-4">
           <div>
             <h3 className="font-bold text-sm tracking-wide uppercase text-slate-200">Detailed Narrative</h3>
