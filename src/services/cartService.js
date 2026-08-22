@@ -30,23 +30,40 @@ export const cartService = {
 
     if (existing) {
       // Update quantity
+      const newQty = existing.quantity + quantity;
       const { data, error } = await supabase
         .from('cart_items')
-        .update({ quantity: existing.quantity + quantity })
+        .update({ quantity: newQty })
         .eq('id', existing.id)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+        .select();
+
+      if (error) {
+        console.warn('addToCart update select error, falling back to direct update:', error.message);
+        const { error: directErr } = await supabase
+          .from('cart_items')
+          .update({ quantity: newQty })
+          .eq('id', existing.id);
+        if (directErr) throw directErr;
+        return { id: existing.id, quantity: newQty };
+      }
+      return data?.[0] || { id: existing.id, quantity: newQty };
     } else {
       // Insert new cart item
+      const payload = { user_id: userId, product_id: productId, quantity, size: size || '' };
       const { data, error } = await supabase
         .from('cart_items')
-        .insert({ user_id: userId, product_id: productId, quantity, size: size || '' })
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+        .insert(payload)
+        .select();
+
+      if (error) {
+        console.warn('addToCart insert select error, falling back to direct insert:', error.message);
+        const { error: directErr } = await supabase
+          .from('cart_items')
+          .insert(payload);
+        if (directErr) throw directErr;
+        return payload;
+      }
+      return data?.[0] || payload;
     }
   },
 
@@ -58,10 +75,18 @@ export const cartService = {
       .from('cart_items')
       .update({ quantity })
       .eq('id', itemId)
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
+      .select();
+
+    if (error) {
+      console.warn('updateCartItemQuantity select error, falling back to direct update:', error.message);
+      const { error: directErr } = await supabase
+        .from('cart_items')
+        .update({ quantity })
+        .eq('id', itemId);
+      if (directErr) throw directErr;
+      return { id: itemId, quantity };
+    }
+    return data?.[0] || { id: itemId, quantity };
   },
 
   /**

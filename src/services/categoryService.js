@@ -19,37 +19,58 @@ export const categoryService = {
    * Create a new category.
    */
   async createCategory({ name, slug }) {
+    let res = null;
     const { data, error } = await supabase
       .from('categories')
       .insert({ name, slug })
-      .select()
-      .single();
+      .select();
 
-    if (error) throw error;
+    if (error) {
+      console.warn('createCategory select error, falling back to direct insert:', error.message);
+      const { error: directErr } = await supabase
+        .from('categories')
+        .insert({ name, slug });
+      if (directErr) throw directErr;
+      res = { name, slug };
+    } else {
+      res = data?.[0] || { name, slug };
+    }
 
     // Log action
-    await adminLogService.logAction(
-      'created_category',
-      'categories',
-      data.id,
-      { name, slug }
-    );
+    if (res) {
+      await adminLogService.logAction(
+        'created_category',
+        'categories',
+        res.id || null,
+        { name, slug }
+      );
+    }
 
-    return data;
+    return res;
   },
 
   /**
    * Update an existing category.
    */
   async updateCategory(id, { name, slug }) {
+    let res = null;
     const { data, error } = await supabase
       .from('categories')
       .update({ name, slug })
       .eq('id', id)
-      .select()
-      .single();
+      .select();
 
-    if (error) throw error;
+    if (error) {
+      console.warn('updateCategory select error, falling back to direct update:', error.message);
+      const { error: directErr } = await supabase
+        .from('categories')
+        .update({ name, slug })
+        .eq('id', id);
+      if (directErr) throw directErr;
+      res = { id, name, slug };
+    } else {
+      res = data?.[0] || { id, name, slug };
+    }
 
     // Log action
     await adminLogService.logAction(
@@ -59,7 +80,7 @@ export const categoryService = {
       { name, slug }
     );
 
-    return data;
+    return res;
   },
 
   /**

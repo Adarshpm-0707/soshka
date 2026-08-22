@@ -28,13 +28,21 @@ export const wishlistService = {
     if (checkError) throw checkError;
     if (existing) return existing; // Already exists, return it
 
+    const payload = { user_id: userId, product_id: productId };
     const { data, error } = await supabase
       .from('wishlist')
-      .insert({ user_id: userId, product_id: productId })
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
+      .insert(payload)
+      .select();
+
+    if (error) {
+      console.warn('addToWishlist select error, falling back to direct insert:', error.message);
+      const { error: directErr } = await supabase
+        .from('wishlist')
+        .insert(payload);
+      if (directErr) throw directErr;
+      return payload;
+    }
+    return data?.[0] || payload;
   },
 
   /**

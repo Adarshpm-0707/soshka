@@ -105,17 +105,17 @@ const AdminCouponsPage = () => {
       if (editingCoupon) {
         const updated = await couponService.updateCoupon(editingCoupon.id, payload);
         await adminLogService.logAction('updated_coupon', 'coupons', editingCoupon.id, {
-          code: updated.code,
-          type: updated.type,
-          value: updated.value
+          code: updated?.code || payload.code,
+          type: updated?.type || payload.type,
+          value: updated?.value || payload.value
         });
         showToast('Coupon updated successfully!', 'success');
       } else {
         const created = await couponService.createCoupon(payload);
-        await adminLogService.logAction('created_coupon', 'coupons', created.id, {
-          code: created.code,
-          type: created.type,
-          value: created.value
+        await adminLogService.logAction('created_coupon', 'coupons', created?.id || null, {
+          code: created?.code || payload.code,
+          type: created?.type || payload.type,
+          value: created?.value || payload.value
         });
         showToast('Coupon created successfully!', 'success');
       }

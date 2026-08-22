@@ -23,14 +23,25 @@ export const reviewService = {
    * Add a review for a product, and recalculate average rating & review count for the product.
    */
   async createReview({ userId, productId, rating, comment }) {
-    // 1. Insert review
-    const { data: reviewData, error: reviewError } = await supabase
-      .from('reviews')
-      .insert({ user_id: userId, product_id: productId, rating, comment })
-      .select()
-      .single();
+    const payload = { user_id: userId, product_id: productId, rating, comment };
+    let reviewData = null;
 
-    if (reviewError) throw reviewError;
+    // 1. Insert review
+    const { data: reviews, error: reviewError } = await supabase
+      .from('reviews')
+      .insert(payload)
+      .select();
+
+    if (reviewError) {
+      console.warn('createReview select error, falling back to direct insert:', reviewError.message);
+      const { error: directErr } = await supabase
+        .from('reviews')
+        .insert(payload);
+      if (directErr) throw directErr;
+      reviewData = payload;
+    } else {
+      reviewData = reviews?.[0] || payload;
+    }
 
     // 2. Fetch all reviews for this product to recalculate
     const { data: allReviews, error: fetchError } = await supabase
@@ -121,14 +132,26 @@ export const reviewService = {
    * Update a review and recalculate average rating & review count for the product.
    */
   async updateReview(reviewId, productId, { rating, comment }) {
-    const { data: reviewData, error: updateError } = await supabase
-      .from('reviews')
-      .update({ rating: Number(rating), comment })
-      .eq('id', reviewId)
-      .select()
-      .single();
+    const payload = { rating: Number(rating), comment };
+    let reviewData = null;
 
-    if (updateError) throw updateError;
+    const { data: reviews, error: updateError } = await supabase
+      .from('reviews')
+      .update(payload)
+      .eq('id', reviewId)
+      .select();
+
+    if (updateError) {
+      console.warn('updateReview select error, falling back to direct update:', updateError.message);
+      const { error: directErr } = await supabase
+        .from('reviews')
+        .update(payload)
+        .eq('id', reviewId);
+      if (directErr) throw directErr;
+      reviewData = { id: reviewId, ...payload };
+    } else {
+      reviewData = reviews?.[0] || { id: reviewId, ...payload };
+    }
 
     // Fetch all reviews for this product to recalculate
     const { data: allReviews, error: fetchError } = await supabase

@@ -47,7 +47,7 @@ const LoginPage = () => {
             .from('profiles')
             .select('role')
             .eq('id', data.user.id)
-            .single();
+            .maybeSingle();
           userRole = profileData?.role || 'user';
         } catch (err) {
           userRole = 'user';

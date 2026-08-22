@@ -48,18 +48,26 @@ export const superadminService = {
     const newUserId = data.user_id;
 
     // Update the profile row to record who created it
-    const { data: profile, error: profileErr } = await supabase
+    const { data: profiles, error: profileErr } = await supabase
       .from('profiles')
       .update({
         created_by: currentUser?.id || null,
         updated_at: new Date().toISOString()
       })
       .eq('id', newUserId)
-      .select()
-      .single();
+      .select();
+
+    const profile = profiles?.[0] || null;
 
     if (profileErr) {
-      throw new Error(`Failed to update database profile: ${profileErr.message}`);
+      console.warn('Profile update select error, falling back to direct update:', profileErr.message);
+      await supabase
+        .from('profiles')
+        .update({
+          created_by: currentUser?.id || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', newUserId);
     }
 
     // Log action
@@ -77,14 +85,24 @@ export const superadminService = {
    * Toggle the active status of an admin account.
    */
   async toggleAdminActive(id, status) {
+    let res = null;
     const { data, error } = await supabase
       .from('profiles')
       .update({ is_active: status, updated_at: new Date().toISOString() })
       .eq('id', id)
-      .select()
-      .single();
+      .select();
 
-    if (error) throw error;
+    if (error) {
+      console.warn('toggleAdminActive select error, falling back to direct update:', error.message);
+      const { error: directErr } = await supabase
+        .from('profiles')
+        .update({ is_active: status, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (directErr) throw directErr;
+      res = { id, is_active: status };
+    } else {
+      res = data?.[0] || { id, is_active: status };
+    }
 
     await adminLogService.logAction(
       status ? 'activated_admin' : 'deactivated_admin',
@@ -93,21 +111,31 @@ export const superadminService = {
       { is_active: status }
     );
 
-    return data;
+    return res;
   },
 
   /**
    * Update the role of an admin.
    */
   async updateAdminRole(id, role) {
+    let res = null;
     const { data, error } = await supabase
       .from('profiles')
       .update({ role, updated_at: new Date().toISOString() })
       .eq('id', id)
-      .select()
-      .single();
+      .select();
 
-    if (error) throw error;
+    if (error) {
+      console.warn('updateAdminRole select error, falling back to direct update:', error.message);
+      const { error: directErr } = await supabase
+        .from('profiles')
+        .update({ role, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (directErr) throw directErr;
+      res = { id, role };
+    } else {
+      res = data?.[0] || { id, role };
+    }
 
     await adminLogService.logAction(
       'updated_admin_role',
@@ -116,7 +144,7 @@ export const superadminService = {
       { role }
     );
 
-    return data;
+    return res;
   },
 
   /**

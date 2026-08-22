@@ -116,7 +116,7 @@ const AdminEditProductPage = () => {
           .from('products')
           .select('*')
           .eq('id', id)
-          .single();
+          .maybeSingle();
         
         if (prodErr) throw prodErr;
 

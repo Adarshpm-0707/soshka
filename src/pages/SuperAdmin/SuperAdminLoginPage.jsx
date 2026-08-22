@@ -165,7 +165,7 @@ const SuperAdminLoginPage = () => {
           .from('profiles')
           .select('*')
           .eq('id', data.user.id)
-          .single();
+          .maybeSingle();
         if (!pErr) profileData = pData;
         else console.warn('Profile fetch error:', pErr.message);
       } catch (err) {

@@ -6,23 +6,31 @@ export const orderService = {
    * The Edge Function inserts the order for Razorpay; this method is for COD.
    */
   async createOrder({ userId, items, subtotal, shippingFee, total, shippingAddress, paymentId }) {
+    const payload = {
+      user_id: userId,
+      items,
+      subtotal: subtotal ?? total,
+      shipping_fee: shippingFee ?? 0,
+      total,
+      shipping_address: shippingAddress,
+      payment_id: paymentId,
+      status: 'pending',
+    };
+
     const { data, error } = await supabase
       .from('orders')
-      .insert({
-        user_id: userId,
-        items,
-        subtotal: subtotal ?? total,
-        shipping_fee: shippingFee ?? 0,
-        total,
-        shipping_address: shippingAddress,
-        payment_id: paymentId,
-        status: 'pending',
-      })
-      .select()
-      .single();
+      .insert(payload)
+      .select();
 
-    if (error) throw error;
-    return data;
+    if (error) {
+      console.warn('createOrder select error, falling back to direct insert:', error.message);
+      const { error: directErr } = await supabase
+        .from('orders')
+        .insert(payload);
+      if (directErr) throw directErr;
+      return payload;
+    }
+    return data?.[0] || payload;
   },
 
   /**
@@ -47,7 +55,7 @@ export const orderService = {
       .from('orders')
       .select('*')
       .eq('id', orderId)
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
     return data;

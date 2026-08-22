@@ -196,28 +196,39 @@ export async function initiateCODPayment(cartItems, shippingAddress) {
 
   const customOrderId = `00000000-0000-0000-0000-${Array.from({ length: 12 }, () => Math.floor(Math.random() * 10)).join("")}`;
 
-  const { data: dbOrder, error: dbError } = await supabase
+  const orderPayload = {
+    id: customOrderId,
+    user_id: userId,
+    items: enrichedItems,
+    subtotal,
+    shipping_fee,
+    cod_fee,
+    total,
+    status: 'confirmed',
+    payment_status: 'pending',
+    order_status: 'confirmed',
+    payment_method: 'cod',
+    shipping_address: shippingAddress,
+  };
+
+  let dbOrder = null;
+  const { data: dbData, error: dbError } = await supabase
     .from('orders')
-    .insert({
-      id: customOrderId,
-      user_id: userId,
-      items: enrichedItems,
-      subtotal,
-      shipping_fee,
-      cod_fee,
-      total,
-      status: 'confirmed',
-      payment_status: 'pending',
-      order_status: 'confirmed',
-      payment_method: 'cod',
-      shipping_address: shippingAddress,
-    })
-    .select()
-    .single();
+    .insert(orderPayload)
+    .select();
 
   if (dbError) {
-    console.error('Direct COD order creation error:', dbError);
-    throw new Error(dbError.message || 'Failed to place COD order.');
+    console.warn('Direct COD order select error, trying without select:', dbError.message);
+    const { error: directErr } = await supabase
+      .from('orders')
+      .insert(orderPayload);
+    if (directErr) {
+      console.error('Direct COD order creation error:', directErr);
+      throw new Error(directErr.message || 'Failed to place COD order.');
+    }
+    dbOrder = orderPayload;
+  } else {
+    dbOrder = dbData?.[0] || orderPayload;
   }
 
   // === BACKGROUND SHIPROCKET AUTO-DISPATCH FOR NEW INCOMING ORDER ===

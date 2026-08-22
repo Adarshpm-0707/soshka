@@ -269,17 +269,17 @@ const AdminAddProductPage = () => {
           sizes,
           is_best_seller: isBestSeller,
         })
-        .select()
-        .single();
+        .select();
 
       if (error) throw error;
+      const createdProd = data?.[0] || null;
 
-      if (data) {
+      if (createdProd) {
         if (selectedCouponIds.length > 0) {
-          await couponService.syncProductCoupons(data.id, selectedCouponIds);
+          await couponService.syncProductCoupons(createdProd.id, selectedCouponIds);
         }
 
-        await adminLogService.logAction('created_product', 'products', data.id, {
+        await adminLogService.logAction('created_product', 'products', createdProd.id, {
           name,
           sku,
           price: originalPrice,

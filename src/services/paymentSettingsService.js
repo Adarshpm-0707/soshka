@@ -36,29 +36,46 @@ export const paymentSettingsService = {
         .from('payment_settings')
         .update(payload)
         .eq('id', settings.id)
-        .select()
-        .single();
+        .select();
 
-      if (error) throw error;
-      result = data;
+      if (error) {
+        console.warn('updatePaymentSettings select error, falling back to direct update:', error.message);
+        const { error: directErr } = await supabase
+          .from('payment_settings')
+          .update(payload)
+          .eq('id', settings.id);
+        if (directErr) throw directErr;
+        result = { id: settings.id, ...payload };
+      } else {
+        result = data?.[0] || { id: settings.id, ...payload };
+      }
     } else {
       const { data, error } = await supabase
         .from('payment_settings')
         .insert(payload)
-        .select()
-        .single();
+        .select();
 
-      if (error) throw error;
-      result = data;
+      if (error) {
+        console.warn('createPaymentSettings select error, falling back to direct insert:', error.message);
+        const { error: directErr } = await supabase
+          .from('payment_settings')
+          .insert(payload);
+        if (directErr) throw directErr;
+        result = payload;
+      } else {
+        result = data?.[0] || payload;
+      }
     }
 
     // Log action
-    await adminLogService.logAction(
-      'updated_payment_settings',
-      'payment_settings',
-      result.id,
-      { gateway: settings.gateway, is_active: settings.is_active }
-    );
+    if (result) {
+      await adminLogService.logAction(
+        'updated_payment_settings',
+        'payment_settings',
+        result.id,
+        { gateway: settings.gateway, is_active: settings.is_active }
+      );
+    }
 
     return result;
   }

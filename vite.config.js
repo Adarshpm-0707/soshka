@@ -5,6 +5,7 @@ import verifyPaymentHandler from './api/verify-payment.js'
 import contactHandler from './api/contact.js'
 import shiprocketPickupHandler from './api/shiprocket-pickup.js'
 import sendOrderConfirmationHandler from './api/send-order-confirmation.js'
+import checkEtaHandler from './api/check-eta.js'
 
 // Trigger dev server middleware reload to refresh ES modules (email fallback prioritization update)
 // https://vitejs.dev/config/
@@ -54,6 +55,10 @@ export default defineConfig(({ mode }) => {
                 }
                 if (url.startsWith('/api/send-order-confirmation')) {
                   await sendOrderConfirmationHandler(req, res);
+                  return;
+                }
+                if (url.startsWith('/api/check-eta')) {
+                  await checkEtaHandler(req, res);
                   return;
                 }
               } catch (err) {

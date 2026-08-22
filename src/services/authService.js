@@ -110,7 +110,7 @@ export const authService = {
       .from('profiles')
       .select('*')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
     if (error) throw error;
     return data;
   },
@@ -119,17 +119,26 @@ export const authService = {
    * Update a user's profile details.
    */
   async updateUserProfile(userId, updates) {
+    const payload = {
+      ...updates,
+      updated_at: new Date().toISOString()
+    };
     const { data, error } = await supabase
       .from('profiles')
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString()
-      })
+      .update(payload)
       .eq('id', userId)
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
+      .select();
+
+    if (error) {
+      console.warn('updateUserProfile select error, falling back to direct update:', error.message);
+      const { error: directErr } = await supabase
+        .from('profiles')
+        .update(payload)
+        .eq('id', userId);
+      if (directErr) throw directErr;
+      return { id: userId, ...payload };
+    }
+    return data?.[0] || { id: userId, ...payload };
   },
 
   /**

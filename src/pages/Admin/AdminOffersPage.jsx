@@ -224,11 +224,12 @@ const AdminOffersPage = () => {
         showToast('Campaign updated successfully!', 'success');
       } else {
         // Create
-        const { data: newOffer, error } = await supabase
+        const { data: newOffers, error } = await supabase
           .from('offers')
           .insert(payload)
-          .select()
-          .single();
+          .select();
+
+        const newOffer = newOffers?.[0] || null;
         if (error) throw error;
 
         await adminLogService.logAction('created_offer', 'offers', newOffer?.id, {

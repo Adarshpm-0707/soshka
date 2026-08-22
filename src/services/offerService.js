@@ -19,36 +19,57 @@ export const offerService = {
    * Create a new campaign.
    */
   async createOffer(payload) {
+    let res = null;
     const { data, error } = await supabase
       .from('offers')
       .insert(payload)
-      .select()
-      .single();
+      .select();
 
-    if (error) throw error;
+    if (error) {
+      console.warn('createOffer select error, falling back to direct insert:', error.message);
+      const { error: directErr } = await supabase
+        .from('offers')
+        .insert(payload);
+      if (directErr) throw directErr;
+      res = payload;
+    } else {
+      res = data?.[0] || payload;
+    }
 
-    await adminLogService.logAction(
-      'created_campaign',
-      'offers',
-      data.id,
-      { title: payload.title, discount_percent: payload.discount_percent }
-    );
+    if (res) {
+      await adminLogService.logAction(
+        'created_campaign',
+        'offers',
+        res.id || null,
+        { title: payload.title, discount_percent: payload.discount_percent }
+      );
+    }
 
-    return data;
+    return res;
   },
 
   /**
    * Update an existing campaign.
    */
   async updateOffer(id, payload) {
+    let res = null;
     const { data, error } = await supabase
       .from('offers')
       .update(payload)
       .eq('id', id)
-      .select()
-      .single();
+      .select();
 
-    if (error) throw error;
+    if (error) {
+      console.warn('updateOffer select error, falling back to direct update:', error.message);
+      const { error: directErr } = await supabase
+        .from('offers')
+        .update(payload)
+        .eq('id', id);
+      if (directErr) throw directErr;
+      res = { id, ...payload };
+    } else {
+      res = data?.[0] || { id, ...payload };
+    }
 
     await adminLogService.logAction(
       'updated_campaign',
@@ -57,21 +78,31 @@ export const offerService = {
       { title: payload.title, discount_percent: payload.discount_percent }
     );
 
-    return data;
+    return res;
   },
 
   /**
    * Toggle campaign active state.
    */
   async toggleOfferActive(id, is_active) {
+    let res = null;
     const { data, error } = await supabase
       .from('offers')
       .update({ is_active })
       .eq('id', id)
-      .select()
-      .single();
+      .select();
 
-    if (error) throw error;
+    if (error) {
+      console.warn('toggleOfferActive select error, falling back to direct update:', error.message);
+      const { error: directErr } = await supabase
+        .from('offers')
+        .update({ is_active })
+        .eq('id', id);
+      if (directErr) throw directErr;
+      res = { id, is_active };
+    } else {
+      res = data?.[0] || { id, is_active };
+    }
 
     await adminLogService.logAction(
       is_active ? 'activated_campaign' : 'deactivated_campaign',
@@ -80,7 +111,7 @@ export const offerService = {
       { is_active }
     );
 
-    return data;
+    return res;
   },
 
   /**

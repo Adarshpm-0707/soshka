@@ -126,7 +126,7 @@ export const productService = {
         .from('products')
         .select('*, offers(*)')
         .eq('id', id)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       setCachedData(cacheKey, data);
       return data;
@@ -154,7 +154,7 @@ export const productService = {
         .from('products')
         .select('*, offers(*)')
         .eq('slug', slug)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       setCachedData(cacheKey, data);
       return data;
@@ -231,7 +231,7 @@ export const productService = {
       .select('*, offers!inner(*)')
       .eq('slug', slug)
       .eq('offers.is_active', true)
-      .single();
+      .maybeSingle();
     if (error) throw error;
     return data;
   },

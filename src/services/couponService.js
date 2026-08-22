@@ -207,11 +207,19 @@ export const couponService = {
     const { data, error } = await supabase
       .from('coupons')
       .insert(payload)
-      .select()
-      .single();
+      .select();
 
-    if (error) throw error;
-    return data;
+    if (error) {
+      console.warn('createCoupon select error, falling back to direct insert:', error.message);
+      const { error: directErr } = await supabase
+        .from('coupons')
+        .insert(payload);
+
+      if (directErr) throw directErr;
+      return payload;
+    }
+
+    return data?.[0] || payload;
   },
 
   /**
@@ -229,11 +237,20 @@ export const couponService = {
       .from('coupons')
       .update(payload)
       .eq('id', id)
-      .select()
-      .single();
+      .select();
 
-    if (error) throw error;
-    return data;
+    if (error) {
+      console.warn('updateCoupon select error, falling back to direct update:', error.message);
+      const { error: directErr } = await supabase
+        .from('coupons')
+        .update(payload)
+        .eq('id', id);
+
+      if (directErr) throw directErr;
+      return { id, ...payload };
+    }
+
+    return data?.[0] || { id, ...payload };
   },
 
   /**
@@ -245,11 +262,20 @@ export const couponService = {
       .from('coupons')
       .delete()
       .eq('id', id)
-      .select()
-      .single();
+      .select();
 
-    if (error) throw error;
-    return data;
+    if (error) {
+      console.warn('deleteCoupon select error, falling back to direct delete:', error.message);
+      const { error: directErr } = await supabase
+        .from('coupons')
+        .delete()
+        .eq('id', id);
+
+      if (directErr) throw directErr;
+      return { id };
+    }
+
+    return data?.[0] || { id };
   },
 
   /**

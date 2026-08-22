@@ -19,28 +19,39 @@ export const storeReviewService = {
    * Create a new store-wide review.
    */
   async createStoreReview({ name, location, rating, comment, image_url, platform }) {
+    const payload = {
+      name,
+      location,
+      rating: Number(rating),
+      comment,
+      image_url: image_url || null,
+      platform: platform || 'other'
+    };
+
+    let res = null;
     const { data, error } = await supabase
       .from('store_reviews')
-      .insert({
-        name,
-        location,
-        rating: Number(rating),
-        comment,
-        image_url: image_url || null,
-        platform: platform || 'other'
-      })
-      .select()
-      .single();
+      .insert(payload)
+      .select();
 
-    if (error) throw error;
+    if (error) {
+      console.warn('createStoreReview select error, falling back to direct insert:', error.message);
+      const { error: directErr } = await supabase
+        .from('store_reviews')
+        .insert(payload);
+      if (directErr) throw directErr;
+      res = payload;
+    } else {
+      res = data?.[0] || payload;
+    }
 
     // Log this action in admin activity log
-    if (data) {
+    if (res) {
       try {
         await adminLogService.logAction(
           'created_store_review',
           'store_reviews',
-          data.id,
+          res.id || null,
           { name, has_image: !!image_url }
         );
       } catch (logErr) {
@@ -48,7 +59,7 @@ export const storeReviewService = {
       }
     }
 
-    return data;
+    return res;
   },
 
   /**
@@ -81,21 +92,33 @@ export const storeReviewService = {
    * Update a store-wide review by ID.
    */
   async updateStoreReview(id, { name, location, rating, comment, image_url, platform }) {
+    const payload = {
+      name,
+      location,
+      rating: Number(rating),
+      comment,
+      image_url: image_url || null,
+      platform: platform || 'other'
+    };
+
+    let res = null;
     const { data, error } = await supabase
       .from('store_reviews')
-      .update({
-        name,
-        location,
-        rating: Number(rating),
-        comment,
-        image_url: image_url || null,
-        platform: platform || 'other'
-      })
+      .update(payload)
       .eq('id', id)
-      .select()
-      .single();
+      .select();
 
-    if (error) throw error;
+    if (error) {
+      console.warn('updateStoreReview select error, falling back to direct update:', error.message);
+      const { error: directErr } = await supabase
+        .from('store_reviews')
+        .update(payload)
+        .eq('id', id);
+      if (directErr) throw directErr;
+      res = { id, ...payload };
+    } else {
+      res = data?.[0] || { id, ...payload };
+    }
 
     // Log this action in admin activity log
     try {

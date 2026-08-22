@@ -57,11 +57,12 @@ const AdminCategoriesPage = () => {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)+/g, '');
 
-      const { data: newCat, error } = await supabase
+      const { data: newCats, error } = await supabase
         .from('categories')
         .insert({ name: newCatName.trim(), slug })
-        .select()
-        .single();
+        .select();
+
+      const newCat = newCats?.[0] || null;
       
       if (error) throw error;
 
@@ -93,12 +94,13 @@ const AdminCategoriesPage = () => {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)+/g, '');
 
-      const { data: updatedCat, error } = await supabase
+      const { data: updatedCats, error } = await supabase
         .from('categories')
         .update({ name: editingName.trim(), slug })
         .eq('id', id)
-        .select()
-        .single();
+        .select();
+
+      const updatedCat = updatedCats?.[0] || null;
 
       if (error) throw error;
 

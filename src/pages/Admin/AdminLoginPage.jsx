@@ -79,7 +79,7 @@ const AdminLoginPage = () => {
           .from('profiles')
           .select('role')
           .eq('id', data.user.id)
-          .single();
+          .maybeSingle();
         userRole = profileData?.role || (data.user.email?.toLowerCase().includes('admin') || data.user.email === 'adarshpm0707@gmail.com' || data.user.email === 'soshka.in@gmail.com' ? 'admin' : 'user');
       } catch (err) {
         // If query fails, fall back to email validation
